@@ -3,6 +3,7 @@ import json
 import threading
 import logging
 import time
+from typing import Callable
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,11 +18,21 @@ class TicosClient:
         self.reconnect_interval = reconnect_interval
         self.reconnect_thread = None
         self.is_reconnecting = False
+        self.motion_handler = None
+        self.emotion_handler = None
         self._lock = threading.Lock()
 
-    def set_handler(self, handler):
+    def set_message_handler(self, handler: Callable[[object], None]):
         """Set custom message handler"""
         self.handler = handler
+
+    def set_motion_handler(self, handler: Callable[[str, str], None]):
+        """Set handler function for motion messages"""
+        self.motion_handler = handler
+
+    def set_emotion_handler(self, handler: Callable[[str, str], None]):
+        """Set handler function for emotion messages"""
+        self.emotion_handler = handler
 
     def connect(self, auto_reconnect=True):
         """Connect to the motion service server"""
@@ -181,7 +192,14 @@ class TicosClient:
                 message = json.loads(message_bytes.decode('utf-8'))
                 
                 if self.handler:
-                    self.handler.handle_message(message)
+                    self.handler(message)
+
+                if message['func'] == 'motion':
+                    if self.motion_handler:
+                        self.motion_handler(message['id'])
+                elif message['func'] == 'emotion':
+                    if self.emotion_handler:
+                        self.emotion_handler(message['id'])
                 else:
                     logger.info(f"Received message: {message}")
                     

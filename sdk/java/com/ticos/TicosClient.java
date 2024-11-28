@@ -14,7 +14,6 @@ import java.util.logging.Level;
 public class TicosClient {
     private static final String TAG = "TicosClient";
     private static final Logger LOGGER = Logger.getLogger(TAG);
-
     private final String host;
     private final int port;
     private Socket socket;
@@ -24,13 +23,22 @@ public class TicosClient {
     private volatile boolean isReconnecting;
     private Thread receiveThread;
     private Thread reconnectThread;
-    private MessageHandler handler;
+    private MessageHandler messageHandler;
+    private MotionHandler motionHandler;
+    private EmotionHandler emotionHandler;
     private final int reconnectInterval;
     private final ReentrantLock lock = new ReentrantLock();
-    private byte[] lengthBuffer = new byte[4]; // Added: Initialize lengthBuffer
 
     public interface MessageHandler {
-        void handleMessage(String func, String id);
+        void handleMessage(JSONObject message);
+    }
+
+    public interface MotionHandler {
+        void handleMotion(String id);
+    }
+
+    public interface EmotionHandler {
+        void handleEmotion(String id);
     }
 
     public TicosClient(String host, int port) {
@@ -43,8 +51,16 @@ public class TicosClient {
         this.reconnectInterval = reconnectInterval;
     }
 
-    public void setHandler(MessageHandler handler) {
-        this.handler = handler;
+    public void setMessageHandler(MessageHandler handler) {
+        this.messageHandler = handler;
+    }
+
+    public void setMotionHandler(MotionHandler handler) {
+        this.motionHandler = handler;
+    }
+
+    public void setEmotionHandler(EmotionHandler handler) {
+        this.emotionHandler = handler;
     }
 
     public synchronized boolean connect(boolean autoReconnect) {
@@ -65,6 +81,7 @@ public class TicosClient {
                 
                 // Start receiver thread
                 receiveThread = new Thread(this::receiveLoop);
+                receiveThread.setDaemon(true);
                 receiveThread.start();
 
                 LOGGER.info("Connected to server at " + host + ":" + port);
@@ -78,7 +95,6 @@ public class TicosClient {
             lock.unlock();
         }
 
-        // Start reconnect thread outside the lock if needed
         if (needReconnect) {
             startReconnectThread();
         }
@@ -91,7 +107,8 @@ public class TicosClient {
             return false;
         }
         try {
-            return socket.getInputStream().available() >= 0;
+            socket.getOutputStream().write(new byte[0]);
+            return true;
         } catch (IOException e) {
             lock.lock();
             try {
@@ -100,15 +117,6 @@ public class TicosClient {
                 lock.unlock();
             }
             return false;
-        }
-    }
-
-    private void closeConnection() {
-        lock.lock();
-        try {
-            closeConnectionNoLock();
-        } finally {
-            lock.unlock();
         }
     }
 
@@ -138,7 +146,7 @@ public class TicosClient {
         if (reconnectThread != null) {
             reconnectThread.interrupt();
             try {
-                reconnectThread.join(1000); // Wait up to 1 second for thread to finish
+                reconnectThread.join(1000);
             } catch (InterruptedException ignored) {
             }
             reconnectThread = null;
@@ -150,6 +158,114 @@ public class TicosClient {
             lock.unlock();
         }
         LOGGER.info("Disconnected from server");
+    }
+
+    public boolean sendMessage(String func, String id) {
+        lock.lock();
+        try {
+            if (socket == null || !checkConnection()) {
+                LOGGER.warning("Not connected to server");
+                if (!isReconnecting && running) {
+                    startReconnectThread();
+                }
+                return false;
+            }
+
+            try {
+                JSONObject message = new JSONObject();
+                message.put("func", func);
+                message.put("id", id);
+
+                byte[] messageBytes = message.toString().getBytes(StandardCharsets.UTF_8);
+                byte[] lengthBytes = ByteBuffer.allocate(4).putInt(messageBytes.length).array();
+
+                outputStream.write(lengthBytes);
+                outputStream.write(messageBytes);
+                outputStream.flush();
+                return true;
+            } catch (Exception e) {
+                LOGGER.warning("Failed to send message: " + e.getMessage());
+                closeConnectionNoLock();
+                if (!isReconnecting && running) {
+                    startReconnectThread();
+                }
+                return false;
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private void receiveLoop() {
+        while (running) {
+            try {
+                if (!checkConnection()) {
+                    break;
+                }
+
+                // Read message length (4 bytes)
+                byte[] lengthBytes = receiveExactly(4);
+                if (lengthBytes == null) {
+                    break;
+                }
+                int messageLength = ByteBuffer.wrap(lengthBytes).getInt();
+
+                // Read message content
+                byte[] messageBytes = receiveExactly(messageLength);
+                if (messageBytes == null) {
+                    break;
+                }
+
+                String messageStr = new String(messageBytes, StandardCharsets.UTF_8);
+                JSONObject message = new JSONObject(messageStr);
+                
+                if (messageHandler != null) {
+                    messageHandler.handleMessage(message);
+                }
+
+                String func = message.getString("func");
+                String id = message.getString("id");
+
+                if ("motion".equals(func) && motionHandler != null) {
+                    motionHandler.handleMotion(id);
+                } else if ("emotion".equals(func) && emotionHandler != null) {
+                    emotionHandler.handleEmotion(id);
+                } else {
+                    LOGGER.info("Received message: " + messageStr);
+                }
+            } catch (Exception e) {
+                LOGGER.warning("Error receiving message: " + e.getMessage());
+                break;
+            }
+        }
+
+        // If we're here, the connection was lost
+        lock.lock();
+        try {
+            closeConnectionNoLock();
+            if (!isReconnecting && running) {
+                startReconnectThread();
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private byte[] receiveExactly(int n) {
+        byte[] data = new byte[n];
+        int totalRead = 0;
+        while (totalRead < n) {
+            try {
+                int read = inputStream.read(data, totalRead, n - totalRead);
+                if (read == -1) {
+                    return null;
+                }
+                totalRead += read;
+            } catch (IOException e) {
+                return null;
+            }
+        }
+        return data;
     }
 
     private void startReconnectThread() {
@@ -181,13 +297,14 @@ public class TicosClient {
                                 
                                 // Start receiver thread
                                 receiveThread = new Thread(this::receiveLoop);
+                                receiveThread.setDaemon(true);
                                 receiveThread.start();
 
                                 LOGGER.info("Connected to server at " + host + ":" + port);
                                 isReconnecting = false;
                                 break;
                             } catch (IOException e) {
-                                LOGGER.log(Level.WARNING, "Reconnection attempt " + retryCount + " failed: " + e.getMessage());
+                                LOGGER.warning("Reconnection attempt " + retryCount + " failed: " + e.getMessage());
                                 closeConnectionNoLock();
                             }
                         } finally {
@@ -204,108 +321,10 @@ public class TicosClient {
                     LOGGER.info("Reconnection stopped: connection established");
                 }
             });
+            reconnectThread.setDaemon(true);
             reconnectThread.start();
-            LOGGER.info("Started reconnection thread");
         } finally {
             lock.unlock();
-        }
-    }
-
-    public boolean sendMessage(String func, String id) {
-        lock.lock();
-        try {
-            if (socket == null || !checkConnection()) {
-                LOGGER.log(Level.WARNING, "Not connected to server");
-                if (!isReconnecting && running) {
-                    startReconnectThread();
-                }
-                return false;
-            }
-
-            try {
-                JSONObject message = new JSONObject();
-                message.put("func", func);
-                message.put("id", id);
-
-                byte[] messageBytes = message.toString().getBytes(StandardCharsets.UTF_8);
-                byte[] lengthBytes = ByteBuffer.allocate(4).putInt(messageBytes.length).array();
-
-                outputStream.write(lengthBytes);
-                outputStream.write(messageBytes);
-                outputStream.flush();
-                return true;
-            } catch (Exception e) {
-                LOGGER.log(Level.WARNING, "Failed to send message: " + e.getMessage());
-                closeConnectionNoLock();
-                if (!isReconnecting && running) {
-                    startReconnectThread();
-                }
-                return false;
-            }
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    private void receiveLoop() {
-        while (running) {
-            try {
-                if (!checkConnection()) {
-                    break;
-                }
-
-                // Read message length (4 bytes)
-                byte[] lengthBytes = new byte[4];
-                if (!receiveExactly(lengthBytes)) {
-                    break;
-                }
-                int messageLength = ByteBuffer.wrap(lengthBytes).getInt();
-
-                // Read message content
-                byte[] messageBytes = new byte[messageLength];
-                if (!receiveExactly(messageBytes)) {
-                    break;
-                }
-
-                String messageStr = new String(messageBytes, StandardCharsets.UTF_8);
-                JSONObject message = new JSONObject(messageStr);
-                
-                if (handler != null) {
-                    handler.handleMessage(message.getString("func"), message.getString("id"));
-                } else {
-                    LOGGER.info("Received message: " + messageStr);
-                }
-            } catch (Exception e) {
-                LOGGER.log(Level.WARNING, "Error receiving message: " + e.getMessage());
-                break;
-            }
-        }
-
-        // If we're here, the connection was lost
-        lock.lock();
-        try {
-            closeConnectionNoLock();
-            if (!isReconnecting && running) {
-                startReconnectThread();
-            }
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    private boolean receiveExactly(byte[] buffer) {
-        try {
-            int totalRead = 0;
-            while (totalRead < buffer.length) {
-                int read = inputStream.read(buffer, totalRead, buffer.length - totalRead);
-                if (read == -1) {
-                    return false;
-                }
-                totalRead += read;
-            }
-            return true;
-        } catch (IOException e) {
-            return false;
         }
     }
 }
