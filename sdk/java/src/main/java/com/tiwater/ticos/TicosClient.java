@@ -319,10 +319,14 @@ public class TicosClient {
                 String func = message.getString("func");
                 String id = message.getString("id");
 
-                if ("motion".equals(func) && motionHandler != null) {
-                    motionHandler.handleMotion(id);
-                } else if ("emotion".equals(func) && emotionHandler != null) {
-                    emotionHandler.handleEmotion(id);
+                if ("motion".equals(func)) {
+                    if (motionHandler != null) {
+                        motionHandler.handleMotion(id);
+                    }
+                } else if ("emotion".equals(func)) {
+                    if (emotionHandler != null) {
+                        emotionHandler.handleEmotion(id);
+                    }
                 } else {
                     LOGGER.info("Received message: " + messageStr);
                 }
