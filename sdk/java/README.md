@@ -31,7 +31,7 @@ import com.ticos.TicosClient.MessageHandler;
 public class Example {
     public static void main(String[] args) {
         // Create a client instance
-        TicosClient client = new TicosClient("localhost", 8080);
+        TicosClient client = new TicosClient("localhost", 9999);
         
         // Set message handler
         client.setHandler(new MessageHandler() {
