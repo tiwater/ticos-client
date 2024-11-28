@@ -1,4 +1,4 @@
-package com.ticos;
+package com.tiwater.ticos;
 
 import org.json.JSONObject;
 import java.io.DataInputStream;
@@ -11,6 +11,17 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
+/**
+ * TicosClient is a Java client SDK for communicating with Ticos Server.
+ * It provides functionality for establishing TCP connections, sending messages,
+ * and handling different types of server responses through dedicated handlers.
+ * 
+ * <p>The client supports automatic reconnection and thread-safe operations.
+ * It uses a length-prefixed JSON message protocol for communication.</p>
+ * 
+ * @version 0.1.0
+ * @since 1.0
+ */
 public class TicosClient {
     private static final String TAG = "TicosClient";
     private static final Logger LOGGER = Logger.getLogger(TAG);
@@ -29,40 +40,98 @@ public class TicosClient {
     private final int reconnectInterval;
     private final ReentrantLock lock = new ReentrantLock();
 
+    /**
+     * Interface for handling generic JSON messages received from the server.
+     */
     public interface MessageHandler {
+        /**
+         * Called when a message is received from the server.
+         * 
+         * @param message The JSON message received from the server
+         */
         void handleMessage(JSONObject message);
     }
 
+    /**
+     * Interface for handling motion-specific messages.
+     */
     public interface MotionHandler {
+        /**
+         * Called when a motion message is received from the server.
+         * 
+         * @param id The ID of the motion message
+         */
         void handleMotion(String id);
     }
 
+    /**
+     * Interface for handling emotion-specific messages.
+     */
     public interface EmotionHandler {
+        /**
+         * Called when an emotion message is received from the server.
+         * 
+         * @param id The ID of the emotion message
+         */
         void handleEmotion(String id);
     }
 
+    /**
+     * Constructs a TicosClient with default reconnection interval (5000ms).
+     * 
+     * @param host The server hostname or IP address
+     * @param port The server port number
+     */
     public TicosClient(String host, int port) {
         this(host, port, 5000);
     }
 
+    /**
+     * Constructs a TicosClient with custom reconnection interval.
+     * 
+     * @param host The server hostname or IP address
+     * @param port The server port number
+     * @param reconnectInterval The interval in milliseconds between reconnection attempts
+     */
     public TicosClient(String host, int port, int reconnectInterval) {
         this.host = host;
         this.port = port;
         this.reconnectInterval = reconnectInterval;
     }
 
+    /**
+     * Sets the handler for generic JSON messages.
+     * 
+     * @param handler The message handler implementation
+     */
     public void setMessageHandler(MessageHandler handler) {
         this.messageHandler = handler;
     }
 
+    /**
+     * Sets the handler for motion messages.
+     * 
+     * @param handler The motion handler implementation
+     */
     public void setMotionHandler(MotionHandler handler) {
         this.motionHandler = handler;
     }
 
+    /**
+     * Sets the handler for emotion messages.
+     * 
+     * @param handler The emotion handler implementation
+     */
     public void setEmotionHandler(EmotionHandler handler) {
         this.emotionHandler = handler;
     }
 
+    /**
+     * Establishes a connection to the server.
+     * 
+     * @param autoReconnect If true, automatically attempts to reconnect when connection is lost
+     * @return true if connection was successful, false otherwise
+     */
     public synchronized boolean connect(boolean autoReconnect) {
         if (socket != null && checkConnection()) {
             return true;
@@ -102,6 +171,11 @@ public class TicosClient {
         return success;
     }
 
+    /**
+     * Checks if the current connection is valid.
+     * 
+     * @return true if connection is valid, false otherwise
+     */
     private boolean checkConnection() {
         if (socket == null || !socket.isConnected() || socket.isClosed()) {
             return false;
@@ -120,6 +194,10 @@ public class TicosClient {
         }
     }
 
+    /**
+     * Closes the current connection without acquiring the lock.
+     * This method should only be called when the lock is already held.
+     */
     private void closeConnectionNoLock() {
         try {
             if (inputStream != null) {
@@ -140,6 +218,10 @@ public class TicosClient {
         }
     }
 
+    /**
+     * Disconnects from the server and stops all background threads.
+     * This method is thread-safe and can be called at any time.
+     */
     public void disconnect() {
         running = false;  
         isReconnecting = false;
@@ -160,6 +242,13 @@ public class TicosClient {
         LOGGER.info("Disconnected from server");
     }
 
+    /**
+     * Sends a message to the server.
+     * 
+     * @param func The function name or message type
+     * @param id The message identifier
+     * @return true if message was sent successfully, false otherwise
+     */
     public boolean sendMessage(String func, String id) {
         lock.lock();
         try {
@@ -196,6 +285,10 @@ public class TicosClient {
         }
     }
 
+    /**
+     * Background thread that handles receiving messages from the server.
+     * This method runs continuously until the client is disconnected.
+     */
     private void receiveLoop() {
         while (running) {
             try {
@@ -251,6 +344,12 @@ public class TicosClient {
         }
     }
 
+    /**
+     * Reads exactly n bytes from the input stream.
+     * 
+     * @param n The number of bytes to read
+     * @return The read bytes, or null if an error occurred
+     */
     private byte[] receiveExactly(int n) {
         byte[] data = new byte[n];
         int totalRead = 0;
@@ -268,6 +367,10 @@ public class TicosClient {
         return data;
     }
 
+    /**
+     * Starts a background thread that attempts to reconnect to the server.
+     * This method is thread-safe and can be called at any time.
+     */
     private void startReconnectThread() {
         lock.lock();
         try {
