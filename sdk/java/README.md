@@ -8,16 +8,16 @@ Add the following dependency to your project's `pom.xml`:
 
 ```xml
 <dependency>
-    <groupId>com.ticos</groupId>
+    <groupId>com.tiwater</groupId>
     <artifactId>ticos-client</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.1</version>
 </dependency>
 ```
 
 Or if you're using Gradle, add this to your `build.gradle`:
 
 ```groovy
-implementation 'com.ticos:ticos-client:0.1.0'
+implementation 'com.tiwater:ticos-client:0.1.1'
 ```
 
 ## Usage
@@ -25,8 +25,7 @@ implementation 'com.ticos:ticos-client:0.1.0'
 Here's a simple example of how to use the Ticos Client:
 
 ```java
-import com.ticos.TicosClient;
-import com.ticos.TicosClient.MessageHandler;
+import com.tiwater.ticos.TicosClient;
 
 public class Example {
     public static void main(String[] args) {
@@ -34,11 +33,8 @@ public class Example {
         TicosClient client = new TicosClient("localhost", 9999);
         
         // Set message handler
-        client.setHandler(new MessageHandler() {
-            @Override
-            public void handleMessage(String func, String id) {
-                System.out.println("Received message - func: " + func + ", id: " + id);
-            }
+        client.setMotionHandler(id -> {
+            System.out.println("Received motion message id: " + id);
         });
 
         // Connect to server with auto-reconnect enabled
