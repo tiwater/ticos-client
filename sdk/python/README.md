@@ -13,7 +13,7 @@ pip install ticos-client==0.1.5
 ## Usage
 
 ```python
-from ticos import TicosClient
+from ticos_client import TicosClient
 
 def main():
     # Create a client instance

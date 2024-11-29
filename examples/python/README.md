@@ -19,7 +19,7 @@ This is an example project demonstrating how to use the Ticos Client Python SDK.
 Here's a simple example of how to use the Ticos Client:
 
 ```python
-from ticos import TicosClient
+from ticos_client import TicosClient
 
 def main():
     # Create a client instance
