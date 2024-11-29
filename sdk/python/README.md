@@ -88,7 +88,7 @@ Messages should be dictionaries with the following structure:
 {
     "func": str,      # Function/message type (e.g., "motion", "emotion")
     "id": str,        # Message identifier
-    "data": dict      # Optional additional data
+    "data": dict      # Optional additional data, TBD
 }
 ```
 

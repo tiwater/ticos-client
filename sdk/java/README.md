@@ -6,8 +6,6 @@ A Java client SDK for communicating with Ticos Server.
 
 ## Installation
 
-Current Version: 0.1.5
-
 Add the following dependency to your project's `pom.xml`:
 
 ```xml
@@ -115,7 +113,7 @@ Messages should be JSONObjects with the following structure:
 {
     "func": "string",  // Function/message type (e.g., "motion", "emotion")
     "id": "string",    // Message identifier
-    "data": {          // Optional additional data
+    "data": {          // Optional additional data, TBD
         "key": "value"
     }
 }
