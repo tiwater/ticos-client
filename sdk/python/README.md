@@ -1,59 +1,109 @@
 # Ticos Client Python SDK
 
-A Python client SDK for communicating with Ticos Server.
+A Python SDK for communicating with Ticos Server.
+
+> **Note**: Check the latest SDK version at [GitHub Releases](https://github.com/tiwater/ticos-client/tags?q=python-*)
 
 ## Installation
 
 ```bash
-pip install ticos-client
+pip install ticos-client==0.1.5
 ```
 
 ## Usage
 
 ```python
-from ticos_client import TicosClient
+from ticos import TicosClient
 
-# Create a client instance
-client = TicosClient(host="localhost", port=8080)
+def main():
+    # Create a client instance
+    client = TicosClient("localhost", 9999)
+    
+    # Set message handlers
+    client.set_motion_handler(lambda id: print(f"Received motion message id: {id}"))
+    client.set_emotion_handler(lambda id: print(f"Received emotion message id: {id}"))
+    client.set_message_handler(lambda msg: print(f"Received message: {msg}"))
 
-# Connect to server
-client.connect(auto_reconnect=True)
+    # Connect to server with auto-reconnect enabled
+    if client.connect(True):
+        print("Connected to server successfully")
+        
+        # Send a message with custom data
+        message = {
+            "func": "motion",
+            "id": "1",
+            "data": {
+                "speed": 1.0,
+                "repeat": 3
+            }
+        }
+        
+        if client.send_message(message):
+            print("Message sent successfully")
+        else:
+            print("Failed to send message")
 
-# Define message handler
-def handle_message(func, id):
-    print(f"Received message - func: {func}, id: {id}")
-
-# Set message handler
-client.set_handler(handle_message)
-
-# Send message
-client.send_message(func="test", id="123")
-
-# Disconnect when done
-client.disconnect()
+if __name__ == "__main__":
+    main()
 ```
 
-## Features
+## API Reference
 
-- Automatic reconnection
-- Message handling
-- Thread-safe communication
-- Configurable connection settings
+### TicosClient
 
-## Requirements
+#### Constructor
 
-- Python 3.6 or higher
+```python
+client = TicosClient(host: str, port: int)
+```
+
+#### Methods
+
+- `connect(auto_reconnect: bool = True) -> bool`
+  - Connect to the server
+  - Returns True if connection successful
+
+- `disconnect()`
+  - Disconnect from the server
+
+- `send_message(message: dict) -> bool`
+  - Send a message to the server
+  - message: A dictionary containing the message data
+  - Returns True if message sent successfully
+
+- `set_message_handler(handler: Callable[[dict], None])`
+  - Set handler for general messages
+
+- `set_motion_handler(handler: Callable[[str], None])`
+  - Set handler for motion messages
+
+- `set_emotion_handler(handler: Callable[[str], None])`
+  - Set handler for emotion messages
+
+### Message Format
+
+Messages should be dictionaries with the following structure:
+
+```python
+{
+    "func": str,      # Function/message type (e.g., "motion", "emotion")
+    "id": str,        # Message identifier
+    "data": dict      # Optional additional data
+}
+```
+
+## Development
+
+1. Clone the repository
+2. Install development dependencies:
+   ```bash
+   pip install -r requirements-dev.txt
+   ```
+3. Run tests:
+   ```bash
+   python -m pytest tests/
+   ```
 
 ## License
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+Apache License 2.0

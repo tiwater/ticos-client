@@ -99,31 +99,29 @@ class TicosClient:
                 self._cleanup_connection_no_lock()
             return False
 
-    def send_message(self, func, id):
-        """Send message to server"""
-        with self._lock:
-            if not self.socket or not self._check_connection():
-                logger.error("Not connected to server")
-                if not self.is_reconnecting and self.running:
-                    self._start_reconnect_thread()
-                return False
+    def send_message(self, message: dict) -> bool:
+        """Send a message to the server.
+
+        Args:
+            message: The message to send as a dictionary.
+
+        Returns:
+            bool: True if message was sent successfully, False otherwise.
+        """
+        if not self.is_connected():
+            logger.warning("Not connected to server")
+            return False
+
+        try:
+            message_str = json.dumps(message)
+            message_bytes = message_str.encode('utf-8')
+            length_bytes = len(message_bytes).to_bytes(4, byteorder='big')
             
-            message = {
-                "func": func,
-                "id": id
-            }
-            try:
-                # Add message length prefix for message framing
-                msg_bytes = json.dumps(message).encode('utf-8')
-                length_prefix = len(msg_bytes).to_bytes(4, byteorder='big')
-                self.socket.sendall(length_prefix + msg_bytes)
-                return True
-            except Exception as e:
-                logger.error(f"Failed to send message: {str(e)}")
-                self._cleanup_connection_no_lock()
-                if not self.is_reconnecting and self.running:
-                    self._start_reconnect_thread()
-                return False
+            self.socket.send(length_bytes + message_bytes)
+            return True
+        except Exception as e:
+            logger.warning(f"Error sending message: {str(e)}")
+            return False
 
     def _start_reconnect_thread(self):
         """Start reconnection thread"""
@@ -225,6 +223,9 @@ class TicosClient:
             except Exception:
                 return None
         return data
+
+    def is_connected(self):
+        return self.socket is not None and self._check_connection()
 
 class DefaultMessageHandler:
     """Default implementation of message handler"""

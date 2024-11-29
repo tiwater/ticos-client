@@ -93,7 +93,8 @@ class MotionServer:
     def _random_message_generator(self):
         """Generate and send random messages to all clients"""
         functions = ['motion', 'emotion']
-        motion_ids = ['greet', 'nod', 'wave', 'bow']
+        # motion_ids = ['greet', 'nod', 'wave', 'bow']
+        motion_ids = ['1', '2', '3', '4']
         emotion_ids = ['happy', 'sad', 'angry', 'surprised']
         
         while self.running:

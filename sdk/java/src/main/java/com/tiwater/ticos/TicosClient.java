@@ -245,11 +245,10 @@ public class TicosClient {
     /**
      * Sends a message to the server.
      * 
-     * @param func The function name or message type
-     * @param id The message identifier
-     * @return true if message was sent successfully, false otherwise
+     * @param message The message to send as a JSONObject
+     * @return true if the message was sent successfully, false otherwise
      */
-    public boolean sendMessage(String func, String id) {
+    public boolean sendMessage(JSONObject message) {
         lock.lock();
         try {
             if (socket == null || !checkConnection()) {
@@ -261,10 +260,6 @@ public class TicosClient {
             }
 
             try {
-                JSONObject message = new JSONObject();
-                message.put("func", func);
-                message.put("id", id);
-
                 byte[] messageBytes = message.toString().getBytes(StandardCharsets.UTF_8);
                 byte[] lengthBytes = ByteBuffer.allocate(4).putInt(messageBytes.length).array();
 

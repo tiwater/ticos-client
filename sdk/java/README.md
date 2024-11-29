@@ -2,7 +2,11 @@
 
 A Java client SDK for communicating with Ticos Server.
 
+> **Note**: Check the latest SDK version at [GitHub Releases](https://github.com/tiwater/ticos-client/tags?q=java-*)
+
 ## Installation
+
+Current Version: 0.1.5
 
 Add the following dependency to your project's `pom.xml`:
 
@@ -10,14 +14,14 @@ Add the following dependency to your project's `pom.xml`:
 <dependency>
     <groupId>com.tiwater</groupId>
     <artifactId>ticos-client</artifactId>
-    <version>0.1.1</version>
+    <version>0.1.5</version>
 </dependency>
 ```
 
 Or if you're using Gradle, add this to your `build.gradle`:
 
 ```groovy
-implementation 'com.tiwater:ticos-client:0.1.1'
+implementation 'com.tiwater:ticos-client:0.1.5'
 ```
 
 ## Usage
@@ -26,35 +30,37 @@ Here's a simple example of how to use the Ticos Client:
 
 ```java
 import com.tiwater.ticos.TicosClient;
+import org.json.JSONObject;
 
 public class Example {
     public static void main(String[] args) {
         // Create a client instance
         TicosClient client = new TicosClient("localhost", 9999);
         
-        // Set message handler
-        client.setMotionHandler(id -> {
-            System.out.println("Received motion message id: " + id);
-        });
+        // Set message handlers
+        client.setMotionHandler(id -> System.out.println("Received motion message id: " + id));
+        client.setEmotionHandler(id -> System.out.println("Received emotion message id: " + id));
+        client.setMessageHandler(msg -> System.out.println("Received message: " + msg));
 
         // Connect to server with auto-reconnect enabled
         if (client.connect(true)) {
             System.out.println("Connected to server successfully");
             
-            // Send a test message
-            if (client.sendMessage("test", "123")) {
+            // Create and send a message with custom data
+            JSONObject message = new JSONObject()
+                .put("func", "motion")
+                .put("id", "1")
+                .put("data", new JSONObject()
+                    .put("speed", 1.0)
+                    .put("repeat", 3));
+            
+            if (client.sendMessage(message)) {
                 System.out.println("Message sent successfully");
+            } else {
+                System.out.println("Failed to send message");
             }
-            
-            // Keep the application running for a while
-            try {
-                Thread.sleep(5000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            
-            // Disconnect when done
-            client.disconnect();
+        } else {
+            System.out.println("Failed to connect to server");
         }
     }
 }
@@ -70,25 +76,48 @@ public class Example {
 
 ## API Reference
 
-### Constructor
+### TicosClient
+
+#### Constructor
 
 ```java
 TicosClient(String host, int port)
-TicosClient(String host, int port, int reconnectInterval)
 ```
 
-### Methods
+#### Methods
 
-- `setHandler(MessageHandler handler)`: Set the message handler for incoming messages
-- `boolean connect(boolean autoReconnect)`: Connect to the server
-- `void disconnect()`: Disconnect from the server
-- `boolean sendMessage(String func, String id)`: Send a message to the server
+- `boolean connect(boolean autoReconnect)`
+  - Connect to the server
+  - Returns true if connection successful
 
-### MessageHandler Interface
+- `void disconnect()`
+  - Disconnect from the server
 
-```java
-public interface MessageHandler {
-    void handleMessage(String func, String id);
+- `boolean sendMessage(JSONObject message)`
+  - Send a message to the server
+  - message: A JSONObject containing the message data
+  - Returns true if message sent successfully
+
+- `void setMessageHandler(MessageHandler handler)`
+  - Set handler for general messages
+
+- `void setMotionHandler(MotionHandler handler)`
+  - Set handler for motion messages
+
+- `void setEmotionHandler(EmotionHandler handler)`
+  - Set handler for emotion messages
+
+### Message Format
+
+Messages should be JSONObjects with the following structure:
+
+```json
+{
+    "func": "string",  // Function/message type (e.g., "motion", "emotion")
+    "id": "string",    // Message identifier
+    "data": {          // Optional additional data
+        "key": "value"
+    }
 }
 ```
 
@@ -104,6 +133,18 @@ The SDK uses Java's built-in logging framework (`java.util.logging.Logger`) for 
 ## Thread Safety
 
 All public methods in `TicosClient` are thread-safe. The client uses `ReentrantLock` for synchronization, ensuring safe concurrent access from multiple threads.
+
+## Development
+
+1. Clone the repository
+2. Build the project:
+   ```bash
+   mvn clean install
+   ```
+3. Run tests:
+   ```bash
+   mvn test
+   ```
 
 ## License
 

@@ -13,31 +13,39 @@ def handle_emotion_message(id: str):
 
 def main():
     # Create a client instance
-    client = TicosClient(host="localhost", port=9999)
+    client = TicosClient("localhost", 9999)
     
-    # Set message handler
-    client.set_message_handler(handle_message)
-    client.set_motion_handler(handle_motion_message)
-    client.set_emotion_handler(handle_emotion_message)
-    
+    # Set message handlers based on your needs
+    client.set_motion_handler(lambda id: print(f"Received motion message id: {id}"))
+    client.set_emotion_handler(lambda id: print(f"Received emotion message id: {id}"))
+    client.set_message_handler(lambda msg: print(f"Received message: {msg}"))
+
     # Connect to server with auto-reconnect enabled
-    if client.connect(auto_reconnect=True):
+    if client.connect(True):
         print("Connected to server successfully")
         
         # Send a test message
-        if client.send_message(func="test", id="123"):
+        message = {
+            "func": "motion",
+            "id": "1",
+            "data": {
+                "speed": 1.0,
+                "repeat": 3
+            }
+        }
+        
+        if client.send_message(message):
             print("Message sent successfully")
         else:
             print("Failed to send message")
         
-        # Keep the main thread running for a while to receive messages
+        # Keep the main thread running to receive messages
         try:
-            time.sleep(5)
+            while True:
+                time.sleep(1)
         except KeyboardInterrupt:
-            pass
-        
-        # Disconnect when done
-        client.disconnect()
+            print("Shutting down...")
+            client.disconnect()
     else:
         print("Failed to connect to server")
 

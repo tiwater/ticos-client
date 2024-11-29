@@ -2,6 +2,8 @@
 
 Ticos Client SDK provides a simple and efficient way to communicate with Ticos Server. The SDK is available in multiple languages including Java and Python.
 
+> **Note**: Check the latest SDK version at [GitHub Releases](https://github.com/tiwater/ticos-client/tags)
+
 ## Project Structure
 
 ```
@@ -25,7 +27,7 @@ ticos-client/
   <dependency>
       <groupId>com.tiwater</groupId>
       <artifactId>ticos-client</artifactId>
-      <version>0.1.1</version>
+      <version>0.1.5</version>
   </dependency>
   ```
 - [Java SDK Documentation](sdk/java/README.md)
@@ -35,7 +37,7 @@ ticos-client/
 
 - PyPI package:
   ```bash
-  pip install ticos-client
+  pip install ticos-client==0.1.5
   ```
 - [Python SDK Documentation](sdk/python/README.md)
 - [Python Example](examples/python/README.md)
