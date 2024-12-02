@@ -16,7 +16,7 @@ public class Main {
         client.setMotionHandler(motionId -> 
             System.out.println("Received motion command: " + motionId));
         
-        server.setEmotionHandler(emotionId -> 
+        client.setEmotionHandler(emotionId -> 
             System.out.println("Received emotion command: " + emotionId));
 
         if (!client.start()) {
