@@ -106,6 +106,8 @@ def main():
     agent = TicosAgent(host='localhost', port=9999)
     if not agent.connect():
         return
+
+    action_list = ["move_forward", "move_backward", "move_leftward", "move_rightward", "turn_left", "turn_right", "wave_hand", "hug", "give_me_five", "raise_fist", "thumb_up", "come_on"]
     
     try:
         # Send some test messages
@@ -114,7 +116,7 @@ def main():
             agent.send_message({
                 "name": "motion",
                 "parameters": {
-                    "id": str(random.randint(1, 3)),
+                    "id": random.choice(action_list),
                     "speed": random.uniform(0.5, 2.0),
                     "repeat": random.randint(1, 5)
                 }
