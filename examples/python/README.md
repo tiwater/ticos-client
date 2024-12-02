@@ -1,75 +1,77 @@
 # Ticos Client Python Example
 
-This is an example project demonstrating how to use the Ticos Client Python SDK.
+This example demonstrates how to use the Ticos Client Python SDK to communicate with a Ticos Server.
 
-## Running the Example
+## Requirements
 
-1. Make sure you have Python 3.6 or later installed
-2. Install the dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Run the example:
-   ```bash
-   python Main.py
-   ```
+- Python 3.6 or later
+- ticos-client 0.1.7
+
+## Installation
+
+1. Install the Ticos Client SDK:
+```bash
+pip install ticos-client==0.1.7
+```
+
+2. Clone this repository:
+```bash
+git clone https://github.com/tiwater/ticos-client.git
+cd ticos-client/examples/python
+```
 
 ## Usage
 
-Here's a simple example of how to use the Ticos Client:
-
-```python
-from ticos_client import TicosClient
-import time
-
-def message_handler(message):
-    print(f"Received message: {message}")
-
-def motion_handler(motion_id):
-    print(f"Received motion command: {motion_id}")
-
-def emotion_handler(emotion_id):
-    print(f"Received emotion command: {emotion_id}")
-
-def main():
-    # Create and start the client
-    client = TicosClient(port=9999)
-    client.set_message_handler(message_handler)
-    client.set_motion_handler(motion_handler)
-    client.set_emotion_handler(emotion_handler)
-    
-    if not client.start():
-        print("Failed to start client")
-        return
-    
-    try:
-        # Keep the main thread running and send heartbeat
-        while True:
-            client.send_message({
-                "type": "heartbeat",
-                "timestamp": time.time()
-            })
-            time.sleep(5)
-    except KeyboardInterrupt:
-        print("Stopping client...")
-    finally:
-        client.stop()
-
-if __name__ == "__main__":
-    main()
+Run the example:
+```bash
+python Main.py
 ```
 
-## Features Demonstrated
+The example demonstrates:
+- Setting up message handlers for different message types
+- Sending heartbeat messages
+- Handling motion and emotion commands with parameters
+- Proper connection management and cleanup
 
-- Creating and starting a Ticos client
-- Setting up message, motion, and emotion handlers
-- Sending periodic heartbeat messages
-- Proper client initialization and cleanup
-- Graceful shutdown on interrupt
+### Message Format
 
-## Notes
+Messages use the following JSON format:
 
-- The example creates a client on port 9999
-- Heartbeat messages are sent every 5 seconds
-- Use Ctrl+C to gracefully stop the client
-- The client includes proper error handling and cleanup
+```json
+{
+    "name": "string",    // The message name (e.g., "motion", "emotion", "heartbeat")
+    "parameters": {      // Parameters specific to the message type
+        // message-specific parameters
+    }
+}
+```
+
+#### Motion Message Example
+
+```json
+{
+    "name": "motion",
+    "parameters": {
+        "id": "1",
+        "speed": 1.0,
+        "repeat": 3
+    }
+}
+```
+
+#### Emotion Message Example
+
+```json
+{
+    "name": "emotion",
+    "parameters": {
+        "id": "1",
+        "intensity": 0.8,
+        "duration": 2.5
+    }
+}
+```
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

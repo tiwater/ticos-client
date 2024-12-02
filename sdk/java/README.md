@@ -12,14 +12,14 @@ Add the following dependency to your project's `pom.xml`:
 <dependency>
     <groupId>com.tiwater</groupId>
     <artifactId>ticos-client</artifactId>
-    <version>0.1.6</version>
+    <version>0.1.7</version>
 </dependency>
 ```
 
 Or if you're using Gradle, add this to your `build.gradle`:
 
 ```groovy
-implementation 'com.tiwater:ticos-client:0.1.5'
+implementation 'com.tiwater:ticos-client:0.1.7'
 ```
 
 ## Usage
@@ -39,11 +39,11 @@ public class Example {
         client.setMessageHandler(message -> 
             System.out.println("Received message: " + message.toString()));
             
-        client.setMotionHandler(motionId -> 
-            System.out.println("Received motion command: " + motionId));
+        client.setMotionHandler(parameters -> 
+            System.out.println("Received motion command with parameters: " + parameters.toString()));
             
-        client.setEmotionHandler(emotionId -> 
-            System.out.println("Received emotion command: " + emotionId));
+        client.setEmotionHandler(parameters -> 
+            System.out.println("Received emotion command with parameters: " + parameters.toString()));
 
         // Start the client
         if (!client.start()) {
@@ -54,10 +54,31 @@ public class Example {
         try {
             // Example: Send a heartbeat message
             JSONObject heartbeat = new JSONObject()
-                .put("type", "heartbeat")
-                .put("timestamp", System.currentTimeMillis());
+                .put("name", "heartbeat")
+                .put("parameters", new JSONObject()
+                    .put("timestamp", System.currentTimeMillis()));
             
             client.sendMessage(heartbeat);
+
+            // Example: Send a motion command
+            JSONObject motion = new JSONObject()
+                .put("name", "motion")
+                .put("parameters", new JSONObject()
+                    .put("id", "1")
+                    .put("speed", 1.0)
+                    .put("repeat", 3));
+            
+            client.sendMessage(motion);
+
+            // Example: Send an emotion command
+            JSONObject emotion = new JSONObject()
+                .put("name", "emotion")
+                .put("parameters", new JSONObject()
+                    .put("id", "1")
+                    .put("intensity", 0.8)
+                    .put("duration", 2.5));
+            
+            client.sendMessage(emotion);
             
             // Keep the main thread running
             while (true) {
@@ -109,15 +130,15 @@ Creates a new Ticos client instance.
 
 - `void setMessageHandler(MessageHandler handler)`
   - Set handler for general messages
-  - handler: Lambda or class implementing MessageHandler interface
+  - handler: Function that takes a JSONObject message as parameter
 
 - `void setMotionHandler(MotionHandler handler)`
   - Set handler for motion commands
-  - handler: Lambda or class implementing MotionHandler interface
+  - handler: Function that takes a JSONObject parameters as parameter
 
 - `void setEmotionHandler(EmotionHandler handler)`
   - Set handler for emotion commands
-  - handler: Lambda or class implementing EmotionHandler interface
+  - handler: Function that takes a JSONObject parameters as parameter
 
 ### Message Format
 
@@ -125,9 +146,30 @@ Messages should be JSONObjects with the following structure:
 
 ```json
 {
-    "type": "string",    // Message type (e.g., "heartbeat", "motion", "emotion")
-    "timestamp": "long", // Optional timestamp
-    "data": {}          // Optional additional data
+    "name": "string",    // The name of the message (e.g., "motion", "emotion", "heartbeat")
+    "parameters": {      // A JSON object of parameters specific to the message type
+        // message-specific parameters
+    }
+}
+```
+
+#### Motion Message Parameters
+
+```json
+{
+    "id": "string",     // The motion ID
+    "speed": 1.0,       // Motion speed (optional, default: 1.0)
+    "repeat": 1         // Number of times to repeat (optional, default: 1)
+}
+```
+
+#### Emotion Message Parameters
+
+```json
+{
+    "id": "string",     // The emotion ID
+    "intensity": 1.0,   // Emotion intensity (optional, default: 1.0)
+    "duration": 2.5     // Duration in seconds (optional)
 }
 ```
 

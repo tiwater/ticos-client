@@ -24,12 +24,20 @@ class TicosClient:
         """Set custom message handler"""
         self.handler = handler
 
-    def set_motion_handler(self, handler: Callable[[str, str], None]):
-        """Set handler function for motion messages"""
+    def set_motion_handler(self, handler: Callable[[dict], None]):
+        """Set handler function for motion messages
+        
+        Args:
+            handler: Function that takes a parameters dictionary as argument
+        """
         self.motion_handler = handler
 
-    def set_emotion_handler(self, handler: Callable[[str, str], None]):
-        """Set handler function for emotion messages"""
+    def set_emotion_handler(self, handler: Callable[[dict], None]):
+        """Set handler function for emotion messages
+        
+        Args:
+            handler: Function that takes a parameters dictionary as argument
+        """
         self.emotion_handler = handler
 
     def start(self):
@@ -117,12 +125,12 @@ class TicosClient:
                 if self.handler:
                     self.handler(message)
 
-                if message['func'] == 'motion':
+                if message.get('name') == 'motion':
                     if self.motion_handler:
-                        self.motion_handler(message['id'])
-                elif message['func'] == 'emotion':
+                        self.motion_handler(message.get('parameters', {}))
+                elif message.get('name') == 'emotion':
                     if self.emotion_handler:
-                        self.emotion_handler(message['id'])
+                        self.emotion_handler(message.get('parameters', {}))
                 else:
                     logger.info(f"Received message: {message}")
                     
@@ -157,7 +165,8 @@ class TicosClient:
         """Send a message to all connected clients.
 
         Args:
-            message: The message to send as a dictionary.
+            message: The message to send as a dictionary with 'name' and 'parameters' fields.
+                Example: {'name': 'motion', 'parameters': {'id': '1', 'speed': 1.0}}
 
         Returns:
             bool: True if message was sent to at least one client successfully.
@@ -189,9 +198,9 @@ class TicosClient:
 
         return success
 
-    def is_running(self) -> bool:
+    def is_running(self):
         """Check if the server is running"""
-        return self.running and self.server_socket is not None
+        return self.running and bool(self.server_socket)
 
 class DefaultMessageHandler:
     """Default implementation of message handler"""

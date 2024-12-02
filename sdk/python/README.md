@@ -7,7 +7,7 @@ A Python SDK for communicating with Ticos Server. This client SDK allows you to 
 ## Installation
 
 ```bash
-pip install ticos-client==0.1.6
+pip install ticos-client==0.1.7
 ```
 
 ## Usage
@@ -19,11 +19,11 @@ import time
 def message_handler(message):
     print(f"Received message: {message}")
 
-def motion_handler(motion_id):
-    print(f"Received motion command: {motion_id}")
+def motion_handler(parameters):
+    print(f"Received motion command with parameters: {parameters}")
 
-def emotion_handler(emotion_id):
-    print(f"Received emotion command: {emotion_id}")
+def emotion_handler(parameters):
+    print(f"Received emotion command with parameters: {parameters}")
 
 def main():
     # Create and start the client
@@ -42,8 +42,30 @@ def main():
     try:
         # Example: Send a heartbeat message
         client.send_message({
-            "type": "heartbeat",
-            "timestamp": time.time()
+            "name": "heartbeat",
+            "parameters": {
+                "timestamp": time.time()
+            }
+        })
+
+        # Example: Send a motion command
+        client.send_message({
+            "name": "motion",
+            "parameters": {
+                "id": "1",
+                "speed": 1.0,
+                "repeat": 3
+            }
+        })
+
+        # Example: Send an emotion command
+        client.send_message({
+            "name": "emotion",
+            "parameters": {
+                "id": "1",
+                "intensity": 0.8,
+                "duration": 2.5
+            }
         })
         
         # Keep the main thread running
@@ -88,13 +110,13 @@ Creates a new Ticos client instance.
   - Set handler for general messages
   - handler: Function that takes a message dictionary as parameter
 
-- `set_motion_handler(handler: Callable[[str], None])`
+- `set_motion_handler(handler: Callable[[dict], None])`
   - Set handler for motion commands
-  - handler: Function that takes a motion ID string as parameter
+  - handler: Function that takes a parameters dictionary as parameter
 
-- `set_emotion_handler(handler: Callable[[str], None])`
+- `set_emotion_handler(handler: Callable[[dict], None])`
   - Set handler for emotion commands
-  - handler: Function that takes an emotion ID string as parameter
+  - handler: Function that takes a parameters dictionary as parameter
 
 ### Message Format
 
@@ -102,9 +124,28 @@ Messages should be dictionaries with the following structure:
 
 ```python
 {
-    "type": str,      # Message type (e.g., "heartbeat", "motion", "emotion")
-    "timestamp": float,  # Optional timestamp
-    "data": dict      # Optional additional data
+    "name": str,        # The name of the message (e.g., "motion", "emotion", "heartbeat")
+    "parameters": dict  # A dictionary of parameters specific to the message type
+}
+```
+
+#### Motion Message Parameters
+
+```python
+{
+    "id": str,         # The motion ID
+    "speed": float,    # Motion speed (optional, default: 1.0)
+    "repeat": int      # Number of times to repeat (optional, default: 1)
+}
+```
+
+#### Emotion Message Parameters
+
+```python
+{
+    "id": str,           # The emotion ID
+    "intensity": float,  # Emotion intensity (optional, default: 1.0)
+    "duration": float    # Duration in seconds (optional)
 }
 ```
 

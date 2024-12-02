@@ -11,11 +11,11 @@ logger = logging.getLogger(__name__)
 def message_handler(message):
     logger.info(f"Received message: {message}")
 
-def motion_handler(motion_id):
-    logger.info(f"Received motion command: {motion_id}")
+def motion_handler(parameters):
+    logger.info(f"Received motion command with parameters: {parameters}")
 
-def emotion_handler(emotion_id):
-    logger.info(f"Received emotion command: {emotion_id}")
+def emotion_handler(parameters):
+    logger.info(f"Received emotion command with parameters: {parameters}")
 
 def main():
     # Create and start the client
@@ -29,12 +29,13 @@ def main():
         return
     
     try:
-        # Keep the main thread running
+        # Keep the main thread running and send heartbeat
         while True:
-            # Periodically broadcast a heartbeat message to all clients
             client.send_message({
-                "type": "heartbeat",
-                "timestamp": time.time()
+                "name": "heartbeat",
+                "parameters": {
+                    "timestamp": time.time()
+                }
             })
             time.sleep(5)
     except KeyboardInterrupt:

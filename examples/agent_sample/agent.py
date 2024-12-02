@@ -14,22 +14,21 @@ class TicosAgent:
         self.port = port
         self.socket = None
         self.running = True
-        self.connected = False
-        self._lock = threading.Lock()
+        self.receive_thread = None
 
     def connect(self):
-        """Connect to the Ticos server"""
+        """Connect to the server"""
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((self.host, self.port))
-            self.connected = True
             logger.info(f"Connected to server at {self.host}:{self.port}")
             
-            # Start receiver thread
-            threading.Thread(target=self._receive_loop, daemon=True).start()
+            # Start receive thread
+            self.receive_thread = threading.Thread(target=self._receive_loop, daemon=True)
+            self.receive_thread.start()
             return True
         except Exception as e:
-            logger.error(f"Connection failed: {str(e)}")
+            logger.error(f"Failed to connect: {str(e)}")
             self._cleanup()
             return False
 
@@ -40,38 +39,33 @@ class TicosAgent:
         logger.info("Disconnected from server")
 
     def _cleanup(self):
-        """Clean up the socket connection"""
-        with self._lock:
-            if self.socket:
-                try:
-                    self.socket.close()
-                except:
-                    pass
-                self.socket = None
-            self.connected = False
+        """Clean up connection"""
+        if self.socket:
+            try:
+                self.socket.close()
+            except:
+                pass
+            self.socket = None
 
-    def send_message(self, message: dict) -> bool:
+    def send_message(self, message):
         """Send a message to the server"""
-        if not self.connected:
-            logger.warning("Not connected to server")
+        if not self.socket:
+            logger.error("Not connected to server")
             return False
-
+        
         try:
             message_str = json.dumps(message)
             message_bytes = message_str.encode('utf-8')
             length_bytes = len(message_bytes).to_bytes(4, byteorder='big')
-            
-            with self._lock:
-                self.socket.send(length_bytes + message_bytes)
+            self.socket.send(length_bytes + message_bytes)
             return True
         except Exception as e:
-            logger.error(f"Error sending message: {str(e)}")
-            self._cleanup()
+            logger.error(f"Failed to send message: {str(e)}")
             return False
 
     def _receive_loop(self):
-        """Receive messages from server"""
-        while self.running and self.connected:
+        """Receive messages from the server"""
+        while self.running:
             try:
                 # First read message length (4 bytes)
                 length_bytes = self._receive_exactly(4)
@@ -87,14 +81,14 @@ class TicosAgent:
                 
                 message = json.loads(message_bytes.decode('utf-8'))
                 logger.info(f"Received message: {message}")
-                    
             except Exception as e:
-                logger.error(f"Error receiving message: {str(e)}")
+                if self.running:
+                    logger.error(f"Error receiving message: {str(e)}")
                 break
         
         self._cleanup()
 
-    def _receive_exactly(self, n: int) -> bytes:
+    def _receive_exactly(self, n):
         """Helper method to receive exactly n bytes"""
         data = bytearray()
         while len(data) < n:
@@ -118,15 +112,23 @@ def main():
         while True:
             # Send a motion command
             agent.send_message({
-                "func": "motion",
-                "id": str(random.randint(1, 3))
+                "name": "motion",
+                "parameters": {
+                    "id": str(random.randint(1, 3)),
+                    "speed": random.uniform(0.5, 2.0),
+                    "repeat": random.randint(1, 5)
+                }
             })
             time.sleep(2)
             
             # Send an emotion command
             agent.send_message({
-                "func": "emotion",
-                "id": str(random.randint(1, 3))
+                "name": "emotion",
+                "parameters": {
+                    "id": str(random.randint(1, 3)),
+                    "intensity": random.uniform(0.1, 1.0),
+                    "duration": random.uniform(1.0, 5.0)
+                }
             })
             time.sleep(2)
     except KeyboardInterrupt:

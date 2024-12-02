@@ -6,6 +6,7 @@ This example demonstrates how to use the Ticos Client Java SDK to communicate wi
 
 - Java 8 or higher
 - Maven 3.6 or higher
+- ticos-client 0.1.7
 
 ## Getting Started
 
@@ -60,8 +61,8 @@ if (!client.start()) {
 4. Sending heartbeat messages:
 ```java
 JSONObject heartbeat = new JSONObject()
-    .put("type", "heartbeat")
-    .put("timestamp", System.currentTimeMillis());
+    .put("name", "heartbeat")
+    .put("parameters", new JSONObject());
 client.sendMessage(heartbeat);
 ```
 
@@ -86,10 +87,49 @@ The example includes comprehensive error handling:
 - Proper resource cleanup on shutdown
 - Interrupt handling for graceful termination
 
+## Message Format
+
+Messages use the following JSON format:
+
+```json
+{
+    "name": "string",    // The message name (e.g., "motion", "emotion", "heartbeat")
+    "parameters": {      // Parameters specific to the message type
+        // message-specific parameters
+    }
+}
+```
+
+#### Motion Message Example
+
+```json
+{
+    "name": "motion",
+    "parameters": {
+        "id": "1",
+        "speed": 1.0,
+        "repeat": 3
+    }
+}
+```
+
+#### Emotion Message Example
+
+```json
+{
+    "name": "emotion",
+    "parameters": {
+        "id": "1",
+        "intensity": 0.8,
+        "duration": 2.5
+    }
+}
+```
+
 ## Additional Resources
 
 - [Ticos Client SDK Documentation](https://github.com/tiwater/ticos-client)
-- [Maven Central Repository](https://central.sonatype.com/artifact/com.tiwater/ticos-client/0.1.0)
+- [Maven Central Repository](https://central.sonatype.com/artifact/com.tiwater/ticos-client/0.1.7)
 
 ## License
 

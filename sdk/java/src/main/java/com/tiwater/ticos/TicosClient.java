@@ -49,14 +49,14 @@ public class TicosClient {
      * Interface for handling motion-specific messages.
      */
     public interface MotionHandler {
-        void handleMotion(String id);
+        void handleMotion(JSONObject parameters);
     }
 
     /**
      * Interface for handling emotion-specific messages.
      */
     public interface EmotionHandler {
-        void handleEmotion(String id);
+        void handleEmotion(JSONObject parameters);
     }
 
     /**
@@ -164,7 +164,7 @@ public class TicosClient {
     /**
      * Sends a message to all connected clients.
      * 
-     * @param message The message to broadcast
+     * @param message The message to broadcast, should contain 'name' and 'parameters' fields
      * @return true if message was sent to at least one client successfully
      */
     public boolean sendMessage(JSONObject message) {
@@ -261,22 +261,27 @@ public class TicosClient {
                         messageHandler.handleMessage(message);
                     }
 
-                    String func = message.getString("func");
-                    String id = message.getString("id");
+                    String name = message.getString("name");
+                    JSONObject parameters = message.optJSONObject("parameters");
+                    if (parameters == null) {
+                        parameters = new JSONObject();
+                    }
 
-                    if ("motion".equals(func)) {
+                    if ("motion".equals(name)) {
                         if (motionHandler != null) {
-                            motionHandler.handleMotion(id);
+                            motionHandler.handleMotion(parameters);
                         }
-                    } else if ("emotion".equals(func)) {
+                    } else if ("emotion".equals(name)) {
                         if (emotionHandler != null) {
-                            emotionHandler.handleEmotion(id);
+                            emotionHandler.handleEmotion(parameters);
                         }
                     } else {
                         LOGGER.info("Received message: " + messageStr);
                     }
                 } catch (Exception e) {
-                    LOGGER.warning("Error receiving message: " + e.getMessage());
+                    if (running) {
+                        LOGGER.warning("Error receiving message: " + e.getMessage());
+                    }
                     break;
                 }
             }
