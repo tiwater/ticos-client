@@ -33,7 +33,7 @@ def main():
         while True:
             client.send_message({
                 "name": "heartbeat",
-                "parameters": {
+                "arguments": {
                     "timestamp": time.time()
                 }
             })

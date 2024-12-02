@@ -7,7 +7,7 @@ A Python SDK for communicating with Ticos Server. This client SDK allows you to 
 ## Installation
 
 ```bash
-pip install ticos-client==0.1.7
+pip install ticos-client==0.1.8
 ```
 
 ## Usage
@@ -43,7 +43,7 @@ def main():
         # Example: Send a heartbeat message
         client.send_message({
             "name": "heartbeat",
-            "parameters": {
+            "arguments": {
                 "timestamp": time.time()
             }
         })
@@ -51,8 +51,8 @@ def main():
         # Example: Send a motion command
         client.send_message({
             "name": "motion",
-            "parameters": {
-                "id": "1",
+            "arguments": {
+                "motion_tag": "hug",
                 "speed": 1.0,
                 "repeat": 3
             }
@@ -61,8 +61,8 @@ def main():
         # Example: Send an emotion command
         client.send_message({
             "name": "emotion",
-            "parameters": {
-                "id": "1",
+            "arguments": {
+                "emotion_tag": "smile",
                 "intensity": 0.8,
                 "duration": 2.5
             }
@@ -125,7 +125,7 @@ Messages should be dictionaries with the following structure:
 ```python
 {
     "name": str,        # The name of the message (e.g., "motion", "emotion", "heartbeat")
-    "parameters": dict  # A dictionary of parameters specific to the message type
+    "arguments": dict  # A dictionary of parameters specific to the message type
 }
 ```
 
@@ -133,9 +133,8 @@ Messages should be dictionaries with the following structure:
 
 ```python
 {
-    "id": str,         # The motion ID
-    "speed": float,    # Motion speed (optional, default: 1.0)
-    "repeat": int      # Number of times to repeat (optional, default: 1)
+    "name": str,         # The motion ID
+    "arguments": dict   # Motion speed (optional, default: 1.0)
 }
 ```
 
@@ -143,9 +142,8 @@ Messages should be dictionaries with the following structure:
 
 ```python
 {
-    "id": str,           # The emotion ID
-    "intensity": float,  # Emotion intensity (optional, default: 1.0)
-    "duration": float    # Duration in seconds (optional)
+    "name": str,           # The emotion ID
+    "arguments": dict    # Emotion intensity (optional, default: 1.0)
 }
 ```
 

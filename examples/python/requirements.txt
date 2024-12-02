@@ -1,1 +1,1 @@
-ticos-client==0.1.7
+ticos-client==0.1.8

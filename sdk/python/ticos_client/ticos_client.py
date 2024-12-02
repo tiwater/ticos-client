@@ -127,10 +127,10 @@ class TicosClient:
 
                 if message.get('name') == 'motion':
                     if self.motion_handler:
-                        self.motion_handler(message.get('parameters', {}))
+                        self.motion_handler(message.get('arguments', {}))
                 elif message.get('name') == 'emotion':
                     if self.emotion_handler:
-                        self.emotion_handler(message.get('parameters', {}))
+                        self.emotion_handler(message.get('arguments', {}))
                 else:
                     logger.info(f"Received message: {message}")
                     

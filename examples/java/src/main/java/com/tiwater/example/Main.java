@@ -34,7 +34,7 @@ public class Main {
                 // Send heartbeat message
                 JSONObject heartbeat = new JSONObject()
                     .put("name", "heartbeat")
-                    .put("parameters", new JSONObject()
+                    .put("arguments", new JSONObject()
                         .put("timestamp", System.currentTimeMillis()));
                 
                 if (client.sendMessage(heartbeat)) {

@@ -115,8 +115,8 @@ def main():
             # Send a motion command
             agent.send_message({
                 "name": "motion",
-                "parameters": {
-                    "id": random.choice(action_list),
+                "arguments": {
+                    "motion_tag": random.choice(action_list),
                     "speed": random.uniform(0.5, 2.0),
                     "repeat": random.randint(1, 5)
                 }
@@ -126,8 +126,8 @@ def main():
             # Send an emotion command
             agent.send_message({
                 "name": "emotion",
-                "parameters": {
-                    "id": str(random.randint(1, 3)),
+                "arguments": {
+                    "emotion_tag": str(random.randint(1, 3)),
                     "intensity": random.uniform(0.1, 1.0),
                     "duration": random.uniform(1.0, 5.0)
                 }

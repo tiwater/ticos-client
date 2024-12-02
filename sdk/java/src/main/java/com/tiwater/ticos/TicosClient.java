@@ -262,7 +262,7 @@ public class TicosClient {
                     }
 
                     String name = message.getString("name");
-                    JSONObject parameters = message.optJSONObject("parameters");
+                    JSONObject parameters = message.optJSONObject("arguments");
                     if (parameters == null) {
                         parameters = new JSONObject();
                     }

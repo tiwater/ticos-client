@@ -40,7 +40,7 @@ Messages use the following JSON format:
 ```json
 {
     "name": "string",    // The message name (e.g., "motion", "emotion", "heartbeat")
-    "parameters": {      // Parameters specific to the message type
+    "arguments": {      // Parameters specific to the message type
         // message-specific parameters
     }
 }
@@ -51,8 +51,8 @@ Messages use the following JSON format:
 ```json
 {
     "name": "motion",
-    "parameters": {
-        "id": "1",
+    "arguments": {
+        "motion_tag": "hug",
         "speed": 1.0,
         "repeat": 3
     }
@@ -64,8 +64,8 @@ Messages use the following JSON format:
 ```json
 {
     "name": "emotion",
-    "parameters": {
-        "id": "1",
+    "arguments": {
+        "emotion_tag": "smile",
         "intensity": 0.8,
         "duration": 2.5
     }

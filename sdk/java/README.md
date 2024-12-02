@@ -12,14 +12,14 @@ Add the following dependency to your project's `pom.xml`:
 <dependency>
     <groupId>com.tiwater</groupId>
     <artifactId>ticos-client</artifactId>
-    <version>0.1.7</version>
+    <version>0.1.8</version>
 </dependency>
 ```
 
 Or if you're using Gradle, add this to your `build.gradle`:
 
 ```groovy
-implementation 'com.tiwater:ticos-client:0.1.7'
+implementation 'com.tiwater:ticos-client:0.1.8'
 ```
 
 ## Usage
@@ -147,7 +147,7 @@ Messages should be JSONObjects with the following structure:
 ```json
 {
     "name": "string",    // The name of the message (e.g., "motion", "emotion", "heartbeat")
-    "parameters": {      // A JSON object of parameters specific to the message type
+    "arguments": {      // A JSON object of parameters specific to the message type
         // message-specific parameters
     }
 }
@@ -157,7 +157,7 @@ Messages should be JSONObjects with the following structure:
 
 ```json
 {
-    "id": "string",     // The motion ID
+    "motion_tag": "string",     // The motion ID
     "speed": 1.0,       // Motion speed (optional, default: 1.0)
     "repeat": 1         // Number of times to repeat (optional, default: 1)
 }
@@ -167,7 +167,7 @@ Messages should be JSONObjects with the following structure:
 
 ```json
 {
-    "id": "string",     // The emotion ID
+    "emotion_tag": "string",     // The emotion ID
     "intensity": 1.0,   // Emotion intensity (optional, default: 1.0)
     "duration": 2.5     // Duration in seconds (optional)
 }
