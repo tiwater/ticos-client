@@ -2,8 +2,12 @@ package com.tiwater.example;
 
 import com.tiwater.ticos.TicosClient;
 import org.json.JSONObject;
+import java.util.Random;
+import java.util.logging.Logger;
 
 public class Main {
+    private static final Logger LOGGER = Logger.getLogger(Main.class.getName());
+    private static final Random random = new Random();
 
     public static void main(String[] args) {
         // Create and start the client
@@ -11,31 +15,36 @@ public class Main {
         
         // Set message handlers
         client.setMessageHandler(message -> 
-            System.out.println("Received message: " + message.toString()));
-        
-        client.setMotionHandler(motionId -> 
-            System.out.println("Received motion command: " + motionId));
-        
-        client.setEmotionHandler(emotionId -> 
-            System.out.println("Received emotion command: " + emotionId));
+            LOGGER.info("Received message: " + message.toString()));
+            
+        client.setMotionHandler(parameters -> 
+            LOGGER.info("Received motion command with parameters: " + parameters.toString()));
+            
+        client.setEmotionHandler(parameters -> 
+            LOGGER.info("Received emotion command with parameters: " + parameters.toString()));
 
         if (!client.start()) {
-            System.out.println("Failed to start client");
+            LOGGER.severe("Failed to start client");
             return;
         }
 
-        // Keep sending heartbeat messages
         try {
+            // Keep the main thread running and send heartbeat
             while (true) {
+                // Send heartbeat message
                 JSONObject heartbeat = new JSONObject()
-                    .put("type", "heartbeat")
-                    .put("timestamp", System.currentTimeMillis());
+                    .put("name", "heartbeat")
+                    .put("parameters", new JSONObject()
+                        .put("timestamp", System.currentTimeMillis()));
                 
-                client.sendMessage(heartbeat);
-                Thread.sleep(5000);
+                if (client.sendMessage(heartbeat)) {
+                    LOGGER.info("Heartbeat sent");
+                }
+
+                Thread.sleep(2000);
             }
         } catch (InterruptedException e) {
-            System.out.println("Client interrupted");
+            LOGGER.info("Client interrupted");
         } finally {
             client.stop();
         }
