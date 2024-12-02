@@ -3,6 +3,7 @@ import json
 import threading
 import time
 import logging
+import random
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -118,14 +119,14 @@ def main():
             # Send a motion command
             agent.send_message({
                 "func": "motion",
-                "id": "wave"
+                "id": str(random.randint(1, 3))
             })
             time.sleep(2)
             
             # Send an emotion command
             agent.send_message({
                 "func": "emotion",
-                "id": "happy"
+                "id": str(random.randint(1, 3))
             })
             time.sleep(2)
     except KeyboardInterrupt:
