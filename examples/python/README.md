@@ -20,51 +20,56 @@ Here's a simple example of how to use the Ticos Client:
 
 ```python
 from ticos_client import TicosClient
+import time
+
+def message_handler(message):
+    print(f"Received message: {message}")
+
+def motion_handler(motion_id):
+    print(f"Received motion command: {motion_id}")
+
+def emotion_handler(emotion_id):
+    print(f"Received emotion command: {emotion_id}")
 
 def main():
-    # Create a client instance
-    client = TicosClient("localhost", 9999)
+    # Create and start the client
+    client = TicosClient(port=9999)
+    client.set_message_handler(message_handler)
+    client.set_motion_handler(motion_handler)
+    client.set_emotion_handler(emotion_handler)
     
-    # Set message handlers based on your needs
-    client.set_motion_handler(lambda id: print(f"Received motion message id: {id}"))
-    client.set_emotion_handler(lambda id: print(f"Received emotion message id: {id}"))
-    client.set_message_handler(lambda msg: print(f"Received message: {msg}"))
-
-    # Connect to server with auto-reconnect enabled
-    if client.connect(True):
-        print("Connected to server successfully")
-        
-        # Send a test message
-        if client.send_message("test", "123"):
-            print("Message sent successfully")
-        else:
-            print("Failed to send message")
-        
-        # Keep the main thread running to receive messages
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            print("Shutting down...")
-            client.disconnect()
-    else:
-        print("Failed to connect to server")
+    if not client.start():
+        print("Failed to start client")
+        return
+    
+    try:
+        # Keep the main thread running and send heartbeat
+        while True:
+            client.send_message({
+                "type": "heartbeat",
+                "timestamp": time.time()
+            })
+            time.sleep(5)
+    except KeyboardInterrupt:
+        print("Stopping client...")
+    finally:
+        client.stop()
 
 if __name__ == "__main__":
     main()
 ```
 
-
 ## Features Demonstrated
 
-- Connecting to Ticos server
-- Setting up message handlers
-- Sending messages
-- Auto-reconnection
-- Proper connection cleanup
+- Creating and starting a Ticos client
+- Setting up message, motion, and emotion handlers
+- Sending periodic heartbeat messages
+- Proper client initialization and cleanup
+- Graceful shutdown on interrupt
 
 ## Notes
 
-- The example connects to a local server on port 9999 by default
-- Use Ctrl+C to gracefully stop the example
-- The client will automatically attempt to reconnect if the connection is lost
+- The example creates a client on port 9999
+- Heartbeat messages are sent every 5 seconds
+- Use Ctrl+C to gracefully stop the client
+- The client includes proper error handling and cleanup

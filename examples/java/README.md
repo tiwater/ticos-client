@@ -6,7 +6,6 @@ This example demonstrates how to use the Ticos Client Java SDK to communicate wi
 
 - Java 8 or higher
 - Maven 3.6 or higher
-- A running Ticos server (default: localhost:9999)
 
 ## Getting Started
 
@@ -32,59 +31,60 @@ The example demonstrates the following features of the Ticos Client SDK:
 
 1. Creating a client instance:
 ```java
-TicosClient client = new TicosClient("localhost", 9999);
+TicosClient client = new TicosClient(9999);
 ```
 
 2. Setting up message handlers:
 ```java
 // Generic message handler
-client.setMessageHandler(message -> {
-    System.out.println("Received message: " + message.toString());
-});
+client.setMessageHandler(message -> 
+    System.out.println("Received message: " + message.toString()));
 
-// Motion-specific handler
-client.setMotionHandler(id -> {
-    System.out.println("Received motion message id: " + id);
-});
+// Motion handler
+client.setMotionHandler(motionId -> 
+    System.out.println("Received motion command: " + motionId));
 
-// Emotion-specific handler
-client.setEmotionHandler(id -> {
-    System.out.println("Received emotion message id: " + id);
-});
+// Emotion handler
+client.setEmotionHandler(emotionId -> 
+    System.out.println("Received emotion command: " + emotionId));
 ```
 
-3. Connecting to the server with auto-reconnect:
+3. Starting the client:
 ```java
-client.connect(true);
+if (!client.start()) {
+    System.out.println("Failed to start client");
+    return;
+}
 ```
 
-4. Sending messages:
+4. Sending heartbeat messages:
 ```java
-client.sendMessage("test", "123");
+JSONObject heartbeat = new JSONObject()
+    .put("type", "heartbeat")
+    .put("timestamp", System.currentTimeMillis());
+client.sendMessage(heartbeat);
 ```
 
 5. Proper cleanup:
 ```java
-client.disconnect();
+client.stop();
 ```
 
-## Configuration
+## Features
 
-The example connects to `localhost:9999` by default. To connect to a different server:
-
-1. Modify the host and port in `Main.java`:
-```java
-TicosClient client = new TicosClient("your-server-host", your-server-port);
-```
-
-2. Rebuild and run the project.
+- Client initialization and startup
+- Message, motion, and emotion event handling
+- Periodic heartbeat message sending
+- Proper error handling and cleanup
+- Graceful shutdown
 
 ## Error Handling
 
-The example includes basic error handling:
-- Connection failure handling
-- Message sending failure handling
-- Proper resource cleanup
+The example includes comprehensive error handling:
+- Client startup failure handling
+- Message sending error handling
+- Proper resource cleanup on shutdown
+- Interrupt handling for graceful termination
 
 ## Additional Resources
 

@@ -6,21 +6,21 @@ import org.json.JSONObject;
 public class Main {
 
     public static void main(String[] args) {
-        // Create and start the server
-        TicosClient server = new TicosClient(9999);
+        // Create and start the client
+        TicosClient client = new TicosClient(9999);
         
         // Set message handlers
-        server.setMessageHandler(message -> 
+        client.setMessageHandler(message -> 
             System.out.println("Received message: " + message.toString()));
         
-        server.setMotionHandler(motionId -> 
+        client.setMotionHandler(motionId -> 
             System.out.println("Received motion command: " + motionId));
         
         server.setEmotionHandler(emotionId -> 
             System.out.println("Received emotion command: " + emotionId));
 
-        if (!server.start()) {
-            System.out.println("Failed to start server");
+        if (!client.start()) {
+            System.out.println("Failed to start client");
             return;
         }
 
@@ -31,13 +31,13 @@ public class Main {
                     .put("type", "heartbeat")
                     .put("timestamp", System.currentTimeMillis());
                 
-                server.sendMessage(heartbeat);
+                client.sendMessage(heartbeat);
                 Thread.sleep(5000);
             }
         } catch (InterruptedException e) {
-            System.out.println("Server interrupted");
+            System.out.println("Client interrupted");
         } finally {
-            server.stop();
+            client.stop();
         }
     }
 }

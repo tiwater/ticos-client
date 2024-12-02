@@ -1,47 +1,58 @@
 # Ticos Client Python SDK
 
-A Python SDK for communicating with Ticos Server.
+A Python SDK for communicating with Ticos Server. This client SDK allows you to create applications that can send messages, handle motion and emotion commands, and maintain a heartbeat connection with the server.
 
 > **Note**: Check the latest SDK version at [GitHub Releases](https://github.com/tiwater/ticos-client/tags?q=python-*)
 
 ## Installation
 
 ```bash
-pip install ticos-client==0.1.5
+pip install ticos-client==0.1.6
 ```
 
 ## Usage
 
 ```python
 from ticos_client import TicosClient
+import time
+
+def message_handler(message):
+    print(f"Received message: {message}")
+
+def motion_handler(motion_id):
+    print(f"Received motion command: {motion_id}")
+
+def emotion_handler(emotion_id):
+    print(f"Received emotion command: {emotion_id}")
 
 def main():
-    # Create a client instance
-    client = TicosClient("localhost", 9999)
+    # Create and start the client
+    client = TicosClient(port=9999)
     
     # Set message handlers
-    client.set_motion_handler(lambda id: print(f"Received motion message id: {id}"))
-    client.set_emotion_handler(lambda id: print(f"Received emotion message id: {id}"))
-    client.set_message_handler(lambda msg: print(f"Received message: {msg}"))
-
-    # Connect to server with auto-reconnect enabled
-    if client.connect(True):
-        print("Connected to server successfully")
+    client.set_message_handler(message_handler)
+    client.set_motion_handler(motion_handler)
+    client.set_emotion_handler(emotion_handler)
+    
+    # Start the client
+    if not client.start():
+        print("Failed to start client")
+        return
+    
+    try:
+        # Example: Send a heartbeat message
+        client.send_message({
+            "type": "heartbeat",
+            "timestamp": time.time()
+        })
         
-        # Send a message with custom data
-        message = {
-            "func": "motion",
-            "id": "1",
-            "data": {
-                "speed": 1.0,
-                "repeat": 3
-            }
-        }
-        
-        if client.send_message(message):
-            print("Message sent successfully")
-        else:
-            print("Failed to send message")
+        # Keep the main thread running
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Stopping client...")
+    finally:
+        client.stop()
 
 if __name__ == "__main__":
     main()
@@ -54,17 +65,19 @@ if __name__ == "__main__":
 #### Constructor
 
 ```python
-client = TicosClient(host: str, port: int)
+client = TicosClient(port: int)
 ```
+
+Creates a new Ticos client instance.
 
 #### Methods
 
-- `connect(auto_reconnect: bool = True) -> bool`
-  - Connect to the server
-  - Returns True if connection successful
+- `start() -> bool`
+  - Start the client
+  - Returns True if startup successful
 
-- `disconnect()`
-  - Disconnect from the server
+- `stop()`
+  - Stop the client and clean up resources
 
 - `send_message(message: dict) -> bool`
   - Send a message to the server
@@ -73,12 +86,15 @@ client = TicosClient(host: str, port: int)
 
 - `set_message_handler(handler: Callable[[dict], None])`
   - Set handler for general messages
+  - handler: Function that takes a message dictionary as parameter
 
 - `set_motion_handler(handler: Callable[[str], None])`
-  - Set handler for motion messages
+  - Set handler for motion commands
+  - handler: Function that takes a motion ID string as parameter
 
 - `set_emotion_handler(handler: Callable[[str], None])`
-  - Set handler for emotion messages
+  - Set handler for emotion commands
+  - handler: Function that takes an emotion ID string as parameter
 
 ### Message Format
 
@@ -86,11 +102,19 @@ Messages should be dictionaries with the following structure:
 
 ```python
 {
-    "func": str,      # Function/message type (e.g., "motion", "emotion")
-    "id": str,        # Message identifier
-    "data": dict      # Optional additional data, TBD
+    "type": str,      # Message type (e.g., "heartbeat", "motion", "emotion")
+    "timestamp": float,  # Optional timestamp
+    "data": dict      # Optional additional data
 }
 ```
+
+## Features
+
+- Simple and intuitive API for sending and receiving messages
+- Automatic handling of connection management
+- Thread-safe operations
+- Support for different message types (general messages, motion commands, emotion commands)
+- Built-in heartbeat mechanism
 
 ## Development
 
@@ -99,11 +123,5 @@ Messages should be dictionaries with the following structure:
    ```bash
    pip install -r requirements-dev.txt
    ```
-3. Run tests:
-   ```bash
-   python -m pytest tests/
-   ```
 
-## License
-
-Apache License 2.0
+For more examples, check out the [examples/python](../../examples/python) directory.

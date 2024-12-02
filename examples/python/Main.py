@@ -18,29 +18,29 @@ def emotion_handler(emotion_id):
     logger.info(f"Received emotion command: {emotion_id}")
 
 def main():
-    # Create and start the server
-    server = TicosClient(port=9999)
-    server.set_message_handler(message_handler)
-    server.set_motion_handler(motion_handler)
-    server.set_emotion_handler(emotion_handler)
+    # Create and start the client
+    client = TicosClient(port=9999)
+    client.set_message_handler(message_handler)
+    client.set_motion_handler(motion_handler)
+    client.set_emotion_handler(emotion_handler)
     
-    if not server.start():
-        logger.error("Failed to start server")
+    if not client.start():
+        logger.error("Failed to start client")
         return
     
     try:
         # Keep the main thread running
         while True:
             # Periodically broadcast a heartbeat message to all clients
-            server.send_message({
+            client.send_message({
                 "type": "heartbeat",
                 "timestamp": time.time()
             })
             time.sleep(5)
     except KeyboardInterrupt:
-        logger.info("Stopping server...")
+        logger.info("Stopping client...")
     finally:
-        server.stop()
+        client.stop()
 
 if __name__ == "__main__":
     main()

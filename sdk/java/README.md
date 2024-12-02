@@ -1,6 +1,6 @@
 # Ticos Client Java SDK
 
-A Java client SDK for communicating with Ticos Server.
+A Java client SDK for communicating with Ticos Server. This client SDK allows you to create applications that can send messages, handle motion and emotion commands, and maintain a heartbeat connection with the server.
 
 > **Note**: Check the latest SDK version at [GitHub Releases](https://github.com/tiwater/ticos-client/tags?q=java-*)
 
@@ -12,7 +12,7 @@ Add the following dependency to your project's `pom.xml`:
 <dependency>
     <groupId>com.tiwater</groupId>
     <artifactId>ticos-client</artifactId>
-    <version>0.1.5</version>
+    <version>0.1.6</version>
 </dependency>
 ```
 
@@ -32,33 +32,41 @@ import org.json.JSONObject;
 
 public class Example {
     public static void main(String[] args) {
-        // Create a client instance
-        TicosClient client = new TicosClient("localhost", 9999);
+        // Create and start the client
+        TicosClient client = new TicosClient(9999);
         
         // Set message handlers
-        client.setMotionHandler(id -> System.out.println("Received motion message id: " + id));
-        client.setEmotionHandler(id -> System.out.println("Received emotion message id: " + id));
-        client.setMessageHandler(msg -> System.out.println("Received message: " + msg));
+        client.setMessageHandler(message -> 
+            System.out.println("Received message: " + message.toString()));
+            
+        client.setMotionHandler(motionId -> 
+            System.out.println("Received motion command: " + motionId));
+            
+        client.setEmotionHandler(emotionId -> 
+            System.out.println("Received emotion command: " + emotionId));
 
-        // Connect to server with auto-reconnect enabled
-        if (client.connect(true)) {
-            System.out.println("Connected to server successfully");
+        // Start the client
+        if (!client.start()) {
+            System.out.println("Failed to start client");
+            return;
+        }
+
+        try {
+            // Example: Send a heartbeat message
+            JSONObject heartbeat = new JSONObject()
+                .put("type", "heartbeat")
+                .put("timestamp", System.currentTimeMillis());
             
-            // Create and send a message with custom data
-            JSONObject message = new JSONObject()
-                .put("func", "motion")
-                .put("id", "1")
-                .put("data", new JSONObject()
-                    .put("speed", 1.0)
-                    .put("repeat", 3));
+            client.sendMessage(heartbeat);
             
-            if (client.sendMessage(message)) {
-                System.out.println("Message sent successfully");
-            } else {
-                System.out.println("Failed to send message");
+            // Keep the main thread running
+            while (true) {
+                Thread.sleep(1000);
             }
-        } else {
-            System.out.println("Failed to connect to server");
+        } catch (InterruptedException e) {
+            System.out.println("Client interrupted");
+        } finally {
+            client.stop();
         }
     }
 }
@@ -66,11 +74,12 @@ public class Example {
 
 ## Features
 
-- **Easy-to-use API**: Simple and intuitive interface for sending and receiving messages
-- **Auto Reconnection**: Automatically reconnects to the server if the connection is lost
-- **Thread Safety**: All operations are thread-safe
-- **Configurable Settings**: Customize connection parameters and reconnection intervals
-- **Message Handling**: Flexible message handling through callback interface
+- Simple and intuitive API for sending and receiving messages
+- Automatic handling of connection management
+- Thread-safe operations
+- Support for different message types (general messages, motion commands, emotion commands)
+- Built-in heartbeat mechanism
+- Proper resource cleanup
 
 ## API Reference
 
@@ -79,17 +88,19 @@ public class Example {
 #### Constructor
 
 ```java
-TicosClient(String host, int port)
+TicosClient(int port)
 ```
+
+Creates a new Ticos client instance.
 
 #### Methods
 
-- `boolean connect(boolean autoReconnect)`
-  - Connect to the server
-  - Returns true if connection successful
+- `boolean start()`
+  - Start the client
+  - Returns true if startup successful
 
-- `void disconnect()`
-  - Disconnect from the server
+- `void stop()`
+  - Stop the client and clean up resources
 
 - `boolean sendMessage(JSONObject message)`
   - Send a message to the server
@@ -98,12 +109,15 @@ TicosClient(String host, int port)
 
 - `void setMessageHandler(MessageHandler handler)`
   - Set handler for general messages
+  - handler: Lambda or class implementing MessageHandler interface
 
 - `void setMotionHandler(MotionHandler handler)`
-  - Set handler for motion messages
+  - Set handler for motion commands
+  - handler: Lambda or class implementing MotionHandler interface
 
 - `void setEmotionHandler(EmotionHandler handler)`
-  - Set handler for emotion messages
+  - Set handler for emotion commands
+  - handler: Lambda or class implementing EmotionHandler interface
 
 ### Message Format
 
@@ -111,26 +125,30 @@ Messages should be JSONObjects with the following structure:
 
 ```json
 {
-    "func": "string",  // Function/message type (e.g., "motion", "emotion")
-    "id": "string",    // Message identifier
-    "data": {          // Optional additional data, TBD
-        "key": "value"
-    }
+    "type": "string",    // Message type (e.g., "heartbeat", "motion", "emotion")
+    "timestamp": "long", // Optional timestamp
+    "data": {}          // Optional additional data
 }
 ```
 
+## Thread Safety
+
+All operations in TicosClient are thread-safe. The client handles message sending and receiving in separate threads, making it safe to use in multi-threaded applications.
+
 ## Error Handling
 
-The SDK uses Java's built-in logging framework (`java.util.logging.Logger`) for error reporting and debugging. You can configure the logging level and handlers according to your needs.
+The client includes comprehensive error handling:
+- Startup failure detection
+- Message sending error handling
+- Proper resource cleanup on shutdown
+- Thread interruption handling
+
+For more examples, check out the [examples/java](../../examples/java) directory.
 
 ## Requirements
 
 - Java 8 or higher
 - org.json library (automatically managed by Maven/Gradle)
-
-## Thread Safety
-
-All public methods in `TicosClient` are thread-safe. The client uses `ReentrantLock` for synchronization, ensuring safe concurrent access from multiple threads.
 
 ## Development
 
