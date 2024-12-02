@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="ticos-client",
-    version="0.1.5",
+    version="0.1.6",
     author="Ticos Team",
     author_email="admin@tiwater.com",
     description="A client SDK for communicating with Ticos Server",

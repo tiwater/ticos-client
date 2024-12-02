@@ -3,24 +3,22 @@ import json
 import threading
 import logging
 import time
-from typing import Callable
+from typing import Callable, Dict, Set
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class TicosClient:
-    def __init__(self, host='localhost', port=9999, reconnect_interval=5):
-        self.host = host
+    def __init__(self, port=9999):
         self.port = port
-        self.socket = None
+        self.server_socket = None
         self.running = True
         self.handler = None
-        self.reconnect_interval = reconnect_interval
-        self.reconnect_thread = None
-        self.is_reconnecting = False
         self.motion_handler = None
         self.emotion_handler = None
         self._lock = threading.Lock()
+        self.client_sockets: Set[socket.socket] = set()
+        self.client_threads: Dict[socket.socket, threading.Thread] = {}
 
     def set_message_handler(self, handler: Callable[[object], None]):
         """Set custom message handler"""
@@ -34,156 +32,83 @@ class TicosClient:
         """Set handler function for emotion messages"""
         self.emotion_handler = handler
 
-    def connect(self, auto_reconnect=True):
-        """Connect to the motion service server"""
-        if self.socket and self._check_connection():
-            return True
-
-        success = False
-        need_reconnect = False
-        with self._lock:
-            try:
-                self._cleanup_connection_no_lock()
-                
-                self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.socket.connect((self.host, self.port))
-                # Start receiver thread
-                threading.Thread(target=self._receive_loop, daemon=True).start()
-                logger.info(f"Connected to server at {self.host}:{self.port}")
-                success = True
-            except Exception as e:
-                logger.error(f"Connection failed: {str(e)}")
-                self._cleanup_connection_no_lock()
-                need_reconnect = auto_reconnect and not self.is_reconnecting
-
-        # Start reconnect thread outside the lock if needed
-        if need_reconnect:
-            self._start_reconnect_thread()
-        
-        return success
-
-    def disconnect(self):
-        """Disconnect from the server"""
-        self.running = False
-        self.is_reconnecting = False
-        if self.reconnect_thread and self.reconnect_thread.is_alive():
-            self.reconnect_thread.join(timeout=1.0)
-        with self._lock:
-            self._cleanup_connection_no_lock()
-        logger.info("Disconnected from server")
-
-    def _cleanup_connection(self):
-        """Clean up the socket connection with lock"""
-        with self._lock:
-            self._cleanup_connection_no_lock()
-
-    def _cleanup_connection_no_lock(self):
-        """Clean up the socket connection without lock"""
-        if self.socket:
-            try:
-                self.socket.close()
-            except:
-                pass
-            self.socket = None
-
-    def _check_connection(self):
-        """Check if the connection is still alive"""
-        if not self.socket:
-            return False
+    def start(self):
+        """Start the server and listen for connections"""
         try:
-            # Check if the socket is still connected
-            self.socket.send(b'')  # Send a no-op byte
-            return True
-        except socket.error:
-            with self._lock:
-                self._cleanup_connection_no_lock()
-            return False
-
-    def send_message(self, message: dict) -> bool:
-        """Send a message to the server.
-
-        Args:
-            message: The message to send as a dictionary.
-
-        Returns:
-            bool: True if message was sent successfully, False otherwise.
-        """
-        if not self.is_connected():
-            logger.warning("Not connected to server")
-            return False
-
-        try:
-            message_str = json.dumps(message)
-            message_bytes = message_str.encode('utf-8')
-            length_bytes = len(message_bytes).to_bytes(4, byteorder='big')
+            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.server_socket.bind(('0.0.0.0', self.port))
+            self.server_socket.listen(5)
+            logger.info(f"Server started, listening on port {self.port}")
             
-            self.socket.send(length_bytes + message_bytes)
+            # Start accept thread
+            threading.Thread(target=self._accept_connections, daemon=True).start()
             return True
         except Exception as e:
-            logger.warning(f"Error sending message: {str(e)}")
+            logger.error(f"Failed to start server: {str(e)}")
+            self._cleanup()
             return False
 
-    def _start_reconnect_thread(self):
-        """Start reconnection thread"""
+    def stop(self):
+        """Stop the server and close all connections"""
+        self.running = False
+        self._cleanup()
+        logger.info("Server stopped")
+
+    def _cleanup(self):
+        """Clean up all connections"""
         with self._lock:
-            if self.reconnect_thread and self.reconnect_thread.is_alive():
-                return
-
-            self.is_reconnecting = True
-            self.reconnect_thread = threading.Thread(target=self._reconnect_loop, daemon=True)
-            self.reconnect_thread.start()
-
-    def _reconnect_loop(self):
-        """Reconnection loop"""
-        retry_count = 0
-        while self.running and self.is_reconnecting:
-            retry_count += 1
-            logger.info(f"Attempting to reconnect (attempt {retry_count}) in {self.reconnect_interval} seconds...")
-            time.sleep(self.reconnect_interval)
+            if self.server_socket:
+                try:
+                    self.server_socket.close()
+                except:
+                    pass
+                self.server_socket = None
             
-            if not self.running:
-                break
-                
-            try:
-                with self._lock:
-                    self._cleanup_connection_no_lock()
-                    try:
-                        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        self.socket.connect((self.host, self.port))
-                        # Start receiver thread
-                        threading.Thread(target=self._receive_loop, daemon=True).start()
-                        logger.info(f"Connected to server at {self.host}:{self.port}")
-                        self.is_reconnecting = False
-                        break
-                    except Exception as e:
-                        logger.error(f"Reconnection attempt {retry_count} failed: {str(e)}")
-                        self._cleanup_connection_no_lock()
-                        continue
-            except Exception as e:
-                logger.error(f"Reconnection attempt {retry_count} failed: {str(e)}")
-                continue
-        
-        if not self.running:
-            logger.info("Reconnection stopped: client is shutting down")
-        elif not self.is_reconnecting:
-            logger.info("Reconnection stopped: connection established")
+            # Close all client connections
+            for client_socket in self.client_sockets.copy():
+                try:
+                    client_socket.close()
+                except:
+                    pass
+            self.client_sockets.clear()
+            self.client_threads.clear()
 
-    def _receive_loop(self):
-        """Receive messages from server"""
+    def _accept_connections(self):
+        """Accept incoming connections"""
         while self.running:
             try:
-                if not self._check_connection():
-                    break
+                client_socket, address = self.server_socket.accept()
+                logger.info(f"New connection from {address}")
+                
+                with self._lock:
+                    self.client_sockets.add(client_socket)
+                    # Start client thread
+                    client_thread = threading.Thread(
+                        target=self._handle_client,
+                        args=(client_socket,),
+                        daemon=True
+                    )
+                    self.client_threads[client_socket] = client_thread
+                    client_thread.start()
+            except Exception as e:
+                if self.running:
+                    logger.error(f"Error accepting connection: {str(e)}")
+                break
 
+    def _handle_client(self, client_socket: socket.socket):
+        """Handle messages from a client"""
+        while self.running:
+            try:
                 # First read message length (4 bytes)
-                length_bytes = self._receive_exactly(4)
+                length_bytes = self._receive_exactly(client_socket, 4)
                 if not length_bytes:
                     break
                 
                 message_length = int.from_bytes(length_bytes, byteorder='big')
                 
                 # Then read the actual message
-                message_bytes = self._receive_exactly(message_length)
+                message_bytes = self._receive_exactly(client_socket, message_length)
                 if not message_bytes:
                     break
                 
@@ -202,21 +127,25 @@ class TicosClient:
                     logger.info(f"Received message: {message}")
                     
             except Exception as e:
-                logger.error(f"Error receiving message: {str(e)}")
+                logger.error(f"Error handling client message: {str(e)}")
                 break
         
-        # If we're here, the connection was lost
+        # Clean up client connection
         with self._lock:
-            self._cleanup_connection_no_lock()
-        if not self.is_reconnecting and self.running:
-            self._start_reconnect_thread()
+            try:
+                client_socket.close()
+            except:
+                pass
+            self.client_sockets.discard(client_socket)
+            self.client_threads.pop(client_socket, None)
+        logger.info("Client disconnected")
 
-    def _receive_exactly(self, n):
-        """Helper method to receive exactly n bytes"""
+    def _receive_exactly(self, sock: socket.socket, n: int) -> bytes:
+        """Helper method to receive exactly n bytes from a socket"""
         data = bytearray()
         while len(data) < n:
             try:
-                packet = self.socket.recv(n - len(data))
+                packet = sock.recv(n - len(data))
                 if not packet:
                     return None
                 data.extend(packet)
@@ -224,8 +153,45 @@ class TicosClient:
                 return None
         return data
 
-    def is_connected(self):
-        return self.socket is not None and self._check_connection()
+    def send_message(self, message: dict) -> bool:
+        """Send a message to all connected clients.
+
+        Args:
+            message: The message to send as a dictionary.
+
+        Returns:
+            bool: True if message was sent to at least one client successfully.
+        """
+        if not self.client_sockets:
+            logger.warning("No clients connected")
+            return False
+
+        message_str = json.dumps(message)
+        message_bytes = message_str.encode('utf-8')
+        length_bytes = len(message_bytes).to_bytes(4, byteorder='big')
+        full_message = length_bytes + message_bytes
+
+        success = False
+        with self._lock:
+            # Make a copy of the set to avoid modification during iteration
+            for client_socket in self.client_sockets.copy():
+                try:
+                    client_socket.send(full_message)
+                    success = True
+                except Exception as e:
+                    logger.warning(f"Failed to send message to a client: {str(e)}")
+                    try:
+                        client_socket.close()
+                    except:
+                        pass
+                    self.client_sockets.discard(client_socket)
+                    self.client_threads.pop(client_socket, None)
+
+        return success
+
+    def is_running(self) -> bool:
+        """Check if the server is running"""
+        return self.running and self.server_socket is not None
 
 class DefaultMessageHandler:
     """Default implementation of message handler"""

@@ -1,53 +1,46 @@
-from ticos_client import TicosClient
+import sys
+import os
 import time
+import logging
 
-def handle_message(message: object):
-    print(f"Received message: {message}")
+from ticos_client import TicosClient
 
-def handle_motion_message(id: str):
-    print(f"Received motion message id: {id}")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-def handle_emotion_message(id: str):
-    print(f"Received emotion message id: {id}")
+def message_handler(message):
+    logger.info(f"Received message: {message}")
 
+def motion_handler(motion_id):
+    logger.info(f"Received motion command: {motion_id}")
+
+def emotion_handler(emotion_id):
+    logger.info(f"Received emotion command: {emotion_id}")
 
 def main():
-    # Create a client instance
-    client = TicosClient("localhost", 9999)
+    # Create and start the server
+    server = TicosClient(port=9999)
+    server.set_message_handler(message_handler)
+    server.set_motion_handler(motion_handler)
+    server.set_emotion_handler(emotion_handler)
     
-    # Set message handlers based on your needs
-    client.set_motion_handler(lambda id: print(f"Received motion message id: {id}"))
-    client.set_emotion_handler(lambda id: print(f"Received emotion message id: {id}"))
-    client.set_message_handler(lambda msg: print(f"Received message: {msg}"))
-
-    # Connect to server with auto-reconnect enabled
-    if client.connect(True):
-        print("Connected to server successfully")
-        
-        # Send a test message
-        message = {
-            "func": "motion",
-            "id": "1",
-            "data": {
-                "speed": 1.0,
-                "repeat": 3
-            }
-        }
-        
-        if client.send_message(message):
-            print("Message sent successfully")
-        else:
-            print("Failed to send message")
-        
-        # Keep the main thread running to receive messages
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            print("Shutting down...")
-            client.disconnect()
-    else:
-        print("Failed to connect to server")
+    if not server.start():
+        logger.error("Failed to start server")
+        return
+    
+    try:
+        # Keep the main thread running
+        while True:
+            # Periodically broadcast a heartbeat message to all clients
+            server.send_message({
+                "type": "heartbeat",
+                "timestamp": time.time()
+            })
+            time.sleep(5)
+    except KeyboardInterrupt:
+        logger.info("Stopping server...")
+    finally:
+        server.stop()
 
 if __name__ == "__main__":
     main()
