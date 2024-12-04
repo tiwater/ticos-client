@@ -275,6 +275,13 @@ public class TicosClient {
                         if (emotionHandler != null) {
                             emotionHandler.handleEmotion(parameters);
                         }
+                    } else if ("motion_and_emotion".equals(name)) {
+                        if (emotionHandler != null) {
+                            emotionHandler.handleEmotion(parameters);
+                        }
+                        if (motionHandler != null) {
+                            motionHandler.handleMotion(parameters);
+                        }
                     } else {
                         LOGGER.info("Received message: " + messageStr);
                     }

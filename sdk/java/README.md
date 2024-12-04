@@ -55,7 +55,7 @@ public class Example {
             // Example: Send a heartbeat message
             JSONObject heartbeat = new JSONObject()
                 .put("name", "heartbeat")
-                .put("parameters", new JSONObject()
+                .put("arguments", new JSONObject()
                     .put("timestamp", System.currentTimeMillis()));
             
             client.sendMessage(heartbeat);
@@ -63,8 +63,8 @@ public class Example {
             // Example: Send a motion command
             JSONObject motion = new JSONObject()
                 .put("name", "motion")
-                .put("parameters", new JSONObject()
-                    .put("id", "1")
+                .put("arguments", new JSONObject()
+                    .put("motion_tag", "hug")
                     .put("speed", 1.0)
                     .put("repeat", 3));
             
@@ -73,8 +73,8 @@ public class Example {
             // Example: Send an emotion command
             JSONObject emotion = new JSONObject()
                 .put("name", "emotion")
-                .put("parameters", new JSONObject()
-                    .put("id", "1")
+                .put("arguments", new JSONObject()
+                    .put("emotion_tag", "smile")
                     .put("intensity", 0.8)
                     .put("duration", 2.5));
             
@@ -153,8 +153,11 @@ Messages should be JSONObjects with the following structure:
 }
 ```
 
-#### Motion Message Parameters
+#### Motion Message Arguments
 
+The contents of the "arguments" object for a ticos message should be a JSON object, the exact structure of which depends on the requirement of your application.
+
+For example, the following JSON object is a valid motion message:
 ```json
 {
     "motion_tag": "string",     // The motion ID
@@ -163,8 +166,11 @@ Messages should be JSONObjects with the following structure:
 }
 ```
 
-#### Emotion Message Parameters
+#### Emotion Message Arguments
 
+The contents of the "arguments" object for a ticos message should be a JSON object, the exact structure of which depends on the requirement of your application.
+
+For example, the following JSON object is a valid motion message:
 ```json
 {
     "emotion_tag": "string",     // The emotion ID

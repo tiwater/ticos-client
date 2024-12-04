@@ -111,6 +111,7 @@ class TicosClient:
                 # First read message length (4 bytes)
                 length_bytes = self._receive_exactly(client_socket, 4)
                 if not length_bytes:
+                    logger.warning(f"Client disconnected because of incorrect message length header: {length_bytes}")
                     break
                 
                 message_length = int.from_bytes(length_bytes, byteorder='big')
@@ -131,6 +132,11 @@ class TicosClient:
                 elif message.get('name') == 'emotion':
                     if self.emotion_handler:
                         self.emotion_handler(message.get('arguments', {}))
+                elif message.get('name') == 'motion_and_emotion':
+                    if self.emotion_handler:
+                        self.emotion_handler(message.get('arguments', {}))
+                    if self.motion_handler:
+                        self.motion_handler(message.get('arguments', {}))
                 else:
                     logger.info(f"Received message: {message}")
                     
@@ -155,9 +161,11 @@ class TicosClient:
             try:
                 packet = sock.recv(n - len(data))
                 if not packet:
+                    logger.warning("Received empty packet")
                     return None
                 data.extend(packet)
-            except Exception:
+            except Exception as e:
+                logger.error(f"Error receiving message: {str(e)}")
                 return None
         return data
 

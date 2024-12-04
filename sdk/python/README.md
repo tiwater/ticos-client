@@ -129,21 +129,29 @@ Messages should be dictionaries with the following structure:
 }
 ```
 
-#### Motion Message Parameters
+#### Motion Message Arguments
 
-```python
+The contents of the "arguments" object for a ticos message should be a JSON object, the exact structure of which depends on the requirement of your application.
+
+For example, the following JSON object is a valid motion message:
+```json
 {
-    "name": str,         # The motion ID
-    "arguments": dict   # Motion speed (optional, default: 1.0)
+    "motion_tag": "string",     // The motion ID
+    "speed": 1.0,       // Motion speed (optional, default: 1.0)
+    "repeat": 1         // Number of times to repeat (optional, default: 1)
 }
 ```
 
-#### Emotion Message Parameters
+#### Emotion Message Arguments
 
-```python
+The contents of the "arguments" object for a ticos message should be a JSON object, the exact structure of which depends on the requirement of your application.
+
+For example, the following JSON object is a valid motion message:
+```json
 {
-    "name": str,           # The emotion ID
-    "arguments": dict    # Emotion intensity (optional, default: 1.0)
+    "emotion_tag": "string",     // The emotion ID
+    "intensity": 1.0,   // Emotion intensity (optional, default: 1.0)
+    "duration": 2.5     // Duration in seconds (optional)
 }
 ```
 
