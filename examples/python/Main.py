@@ -29,14 +29,9 @@ def main():
         return
     
     try:
-        # Keep the main thread running and send heartbeat
+        # Keep the main thread running and do your own business
         while True:
-            client.send_message({
-                "name": "heartbeat",
-                "arguments": {
-                    "timestamp": time.time()
-                }
-            })
+            # Add your business logic here
             time.sleep(5)
     except KeyboardInterrupt:
         logger.info("Stopping client...")

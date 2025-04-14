@@ -29,19 +29,10 @@ public class Main {
         }
 
         try {
-            // Keep the main thread running and send heartbeat
+            // Keep the main thread running and do your own business
             while (true) {
-                // Send heartbeat message
-                JSONObject heartbeat = new JSONObject()
-                    .put("name", "heartbeat")
-                    .put("arguments", new JSONObject()
-                        .put("timestamp", System.currentTimeMillis()));
-                
-                if (client.sendMessage(heartbeat)) {
-                    LOGGER.info("Heartbeat sent");
-                }
-
-                Thread.sleep(2000);
+                // Add your business logic here
+                Thread.sleep(5000);
             }
         } catch (InterruptedException e) {
             LOGGER.info("Client interrupted");
