@@ -40,13 +40,6 @@ def main():
         return
     
     try:
-        # Example: Send a heartbeat message
-        client.send_message({
-            "name": "heartbeat",
-            "arguments": {
-                "timestamp": time.time()
-            }
-        })
 
         # Example: Send a motion command
         client.send_message({
@@ -161,7 +154,6 @@ For example, the following JSON object is a valid motion message:
 - Automatic handling of connection management
 - Thread-safe operations
 - Support for different message types (general messages, motion commands, emotion commands)
-- Built-in heartbeat mechanism
 
 ## Development
 

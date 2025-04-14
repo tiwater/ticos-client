@@ -58,15 +58,7 @@ if (!client.start()) {
 }
 ```
 
-4. Sending heartbeat messages:
-```java
-JSONObject heartbeat = new JSONObject()
-    .put("name", "heartbeat")
-    .put("arguments", new JSONObject());
-client.sendMessage(heartbeat);
-```
-
-5. Proper cleanup:
+4. Proper cleanup:
 ```java
 client.stop();
 ```
@@ -75,7 +67,6 @@ client.stop();
 
 - Client initialization and startup
 - Message, motion, and emotion event handling
-- Periodic heartbeat message sending
 - Proper error handling and cleanup
 - Graceful shutdown
 

@@ -52,13 +52,6 @@ public class Example {
         }
 
         try {
-            // Example: Send a heartbeat message
-            JSONObject heartbeat = new JSONObject()
-                .put("name", "heartbeat")
-                .put("arguments", new JSONObject()
-                    .put("timestamp", System.currentTimeMillis()));
-            
-            client.sendMessage(heartbeat);
 
             // Example: Send a motion command
             JSONObject motion = new JSONObject()
@@ -99,7 +92,6 @@ public class Example {
 - Automatic handling of connection management
 - Thread-safe operations
 - Support for different message types (general messages, motion commands, emotion commands)
-- Built-in heartbeat mechanism
 - Proper resource cleanup
 
 ## API Reference

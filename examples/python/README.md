@@ -29,7 +29,6 @@ python Main.py
 
 The example demonstrates:
 - Setting up message handlers for different message types
-- Sending heartbeat messages
 - Handling motion and emotion commands with parameters
 - Proper connection management and cleanup
 

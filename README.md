@@ -1,6 +1,6 @@
 # Ticos Client SDK
 
-Ticos Client SDK provides a simple and efficient way to communicate with Ticos Server. It allows you to create client applications that can send and receive messages, handle motion and emotion commands, and maintain a heartbeat connection with the server.
+Ticos Client SDK provides a simple and efficient way to communicate with Ticos Server. It allows you to create client applications that can send and receive messages, handle motion and emotion commands.
 
 > **Note**: Check the latest SDK version at [GitHub Releases](https://github.com/tiwater/ticos-client/tags)
 
@@ -49,7 +49,7 @@ Both Java and Python SDKs follow a similar pattern for creating a client:
 1. Create a TicosClient instance with a specific port
 2. Set up message, motion, and emotion handlers
 3. Start the client
-4. Send messages (like heartbeats) as needed
+4. Send messages as needed
 5. Handle cleanup when done
 
 Check the examples directory for complete working implementations in both Java and Python.
