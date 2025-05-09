@@ -1,19 +1,18 @@
 <img src="https://cloud.ticos.ai/logo.svg" alt="Ticos Logo" width="80" height="auto">
 
-# Ticos-Agent Android Client SDK 说明
+# Ticos-Agent Android Client SDK User Guide
 
-前提条件，已安装有 Android SDK。
+> **Prerequisite**: Ensure Android SDK is installed.
 
-## 集成指南
+## Integration Guide
 
-### 1. 获取开发包 
+### 1. Obtain SDK Packages
 
-获取 Ticos Agent Android SDK 开发包 ticos-common-x.y.z.aar 和 ticos-service-x.y.z.aar。将他们放至 Android 项目 libs 目录下。
+Get the Android SDK packages from Ticos: `ticos-common-x.y.z.aar` and `ticos-service-x.y.z.aar`, and place them in your Android project's `libs` directory.
 
+### 2. Add Dependencies
 
-### 2. 添加依赖
-
-在应用模块的 `build.gradle.kts` 中添加依赖，注意设置正确的版本号：
+Edit the `build.gradle.kts` file of your application module and add the following dependencies (make sure the version numbers are correct):
 
 ```gradle
 dependencies {
@@ -26,133 +25,131 @@ dependencies {
 }
 ```
 
-### 3. 操作权限
+### 3. Set Permissions
 
-在应用的 `AndroidManifest.xml` 中添加服务声明和所需权限：
+In the `AndroidManifest.xml` of your application, add service declarations and the following permissions:
 
 ```xml
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-feature android:name="android.hardware.camera"  android:required="false" />
-    <uses-feature android:name="android.hardware.camera.autofocus" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+<uses-permission android:name="android.permission.CAMERA" />
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+<uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+<uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+<uses-feature android:name="android.hardware.camera" android:required="false" />
+<uses-feature android:name="android.hardware.camera.autofocus" />
 ```
 
-主程序启动后应确保获得下列授权：
-android.Manifest.permission.RECORD_AUDIO
-android.Manifest.permission.CAMERA
+> **Note**: Ensure `android.Manifest.permission.RECORD_AUDIO` and `android.Manifest.permission.CAMERA` permissions are granted after launching the main application.
 
-### 4. TicosAgentClient 使用指南
+### 4. Use TicosAgentClient
 
-`TicosAgentClient` 是访问 Ticos Agent 服务的主要客户端接口，封装了服务绑定、配置管理和状态监控等功能。
+`TicosAgentClient` is the primary interface for accessing the Ticos Agent service. It offers functions for service binding, configuration management, and status monitoring.
 
-#### 4.1 核心API
-| 方法 | 说明 |
-|------|------|
-| initializeconfigSaveMode: ConfigSaveMode, debug: Boolean | 初始化服务配置。 |
-| getServiceConfig() | 获取当前配置(返回 TOML 格式的字符串) |
-| updateServiceConfig(tomlConfig) | 更新配置( TOML 格式的字符串) |
-| startService() | 启动服务 |
-| stopService() | 停止服务 | 
-| restartService() | 重启服务 |
-| getServiceStatus() | 获取服务状态 |
-| setPreviewSurface(surface) | 设置视频预览Surface |
-| registerMessageCallback(callback) | 注册消息回调 |
+#### 4.1 Core API
 
-#### 4.2 创建客户端
+Below are some core methods:
+
+| Method | Description |
+|--------|-------------|
+| `initialize(configSaveMode: ConfigSaveMode, debug: Boolean)` | Initialize service configuration. |
+| `getServiceConfig()` | Retrieve the current configuration (returns a string in TOML format). |
+| `updateServiceConfig(tomlConfig)` | Update configuration (in TOML format). |
+| `startService()` | Start the service. |
+| `stopService()` | Stop the service. |
+| `restartService()` | Restart the service. |
+| `getServiceStatus()` | Get the service status. |
+| `setPreviewSurface(surface)` | Set the video preview surface. |
+| `registerMessageCallback(callback)` | Register a message callback. |
+
+#### 4.2 Create Client Instance
+
+Create an instance of `TicosAgentClient` in `Activity` or `Fragment`:
 
 ```kotlin
-// 在Activity/Fragment中创建实例
 val ticosClient = TicosAgentClient(context)
 ```
 
-#### 4.3 服务绑定与生命周期管理
+#### 4.3 Service Binding and Lifecycle Management
 
-// 绑定服务（通常在onStart/resume时调用）
+Bind and unbind the service (usually called in `onStart`/`onResume` and `onStop`/`onPause`):
+
 ```kotlin
+// Bind the service
 ticosClient.bindService { connected ->
     if (connected) {
-        // 服务连接成功
+        // Service connected successfully
     } else {
-        // 服务连接失败
+        // Service connection failed
     }
 }
-```
-// 解绑服务（通常在onStop/pause时调用） 
-```kotlin
+
+// Unbind the service
 ticosClient.unbindService()
 ```
 
-#### 4.4 初始化
+#### 4.4 Initialize Service
 
-// 初始化服务（在绑定成功后调用）
+Initialize after the service has bound successfully:
+
 ```kotlin
 ticosClient.initialize(ConfigSaveMode.EXTERNAL_STORAGE, debugMode)
 ```
-ConfigSaveMode 有3种模式：
-    PREFERENCE,
-    INTERNAL_STORAGE, 
-    EXTERNAL_STORAGE
-PREFERENCE 会将配置信息保存在 preference 中；
-INTERNAL_STORAGE 会作为 config.toml 保存在内置内存卡；
-EXTERNAL_STORAGE 会作为 config.toml 保存在外置存储卡中，如果外置存储卡不存在，则保存在内置存储卡中。
-后两种形式的存储路径均为 sdcard/Android/<project_package>/files/config/config.toml (随系统不同，具体路径会略有差异)。
 
-debugMode 控制是否输出 Gstreamer log。但此选项需在调用 startService() 前设置。一旦 startService 调用后，需要彻底终止进程，才能重新切换调试状态。
+> **ConfigSaveMode** supports the following modes:
+> - **PREFERENCE**: Configuration is saved in preferences.
+> - **INTERNAL_STORAGE**: Configuration is saved as `config.toml` in internal storage.
+> - **EXTERNAL_STORAGE**: Configuration is saved as `config.toml` on an external storage card.
+Both storage paths used in the latter two modes are sdcard/Android/<project_package>/files/config/config.toml (the exact path may vary slightly depending on the system).
 
-#### 4.4 消息回调处理
-实现消息回调接口：
+`debugMode` controls whether to output Gstreamer logs (set before `startService()`). Once `startService` is called, you must terminate the process completely to switch debug states again.
+
+#### 4.5 Register Message Callback
+
+Implement the message callback interface and register it:
+
 ```kotlin
 val messageCallback = object : ITicosMessageCallback.Stub() {
     override fun onMessage(message: String) {
         Log.d(TAG, "Received message: $message")
-        runOnUiThread {
-            // 处理服务端推送的消息
-        }
+        // Handle messages sent from the server
     }
 
     override fun onMotion(parameters: String) {
         Log.d(TAG, "Received motion: $parameters")
-        runOnUiThread {
-            // 处理服务端推送的消息
-        }
+        // Handle motion events
     }
 
     override fun onEmotion(parameters: String) {
         Log.d(TAG, "Received emotion: $parameters")
-        runOnUiThread {
-            // 处理服务端推送的消息
-        }
+        // Handle emotion events
     }
 }
+
+ticosClient.registerMessageCallback(messageCallback)
 ```
-注册/注销回调：
+
+Unregister the callback:
+
 ```kotlin
-// 注册回调
-ticosClient.registerMessageCallback(callback)
-
-// 注销回调
-ticosClient.unregisterMessageCallback(callback)
+ticosClient.unregisterMessageCallback(messageCallback)
 ```
 
-#### 4.5 启动/停止服务
-根据需要，启动或停止 ticos agent 服务：
+#### 4.6 Start/Stop the Service
+
+Start or stop the service as needed:
+
 ```kotlin
 ticosClient.startService()
-// 服务启动后即可以与终端进行交互
+// Interact with the service once started
 ...
 ticosClient.stopService()
 ```
 
-#### 4.6 完整示例
+#### 4.7 Complete Example
+
 ```kotlin
 class MainActivity : AppCompatActivity() {
     private lateinit var ticosClient: TicosAgentClient
@@ -166,9 +163,7 @@ class MainActivity : AppCompatActivity() {
         super.onStart()
         ticosClient.bindService { connected ->
             if (connected) {
-                // 获取当前配置
                 val config = ticosClient.getServiceConfig()
-                // 启动服务
                 ticosClient.startService()
             }
         }
@@ -181,8 +176,11 @@ class MainActivity : AppCompatActivity() {
 }
 ```
 
-#### 4.7 注意事项
+### 4.8 Notes
 
-* 所有API调用应在服务绑定成功后进行（bindService回调返回true）
-* 配置更新是异步操作，建议通过消息回调监听状态变化
-* 目前仅提供 arm64-v8a 架构支持
+- Ensure APIs are called only after the service has been successfully bound (i.e., when the `bindService` callback returns `true`).
+- Currently, only the `arm64-v8a` architecture is supported.
+
+## License
+
+Copyright © 2023-2025 Tiwater Limited. All rights reserved.
