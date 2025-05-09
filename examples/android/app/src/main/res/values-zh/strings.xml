@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ticos 智能体</string>
+    <string name="title_activity_settings">设置</string>
+    <!-- Main Activity -->
+    <string name="action_settings">设置</string>
+    <string name="service_status">服务状态</string>
+    <string name="service_running">运行中</string>
+    <string name="service_stopped">已停止</string>
+    <string name="start_service">启动</string>
+    <string name="stop_service">停止</string>
+    <string name="restart_service">重启</string>
+    <!-- Settings -->
+    <string name="header_general">常规</string>
+    <string name="header_microphone">麦克风</string>
+    <string name="header_speaker">扬声器</string>
+    <string name="header_camera">摄像头</string>
+    <string name="header_realtime">实时通信</string>
+    <string name="header_vad">语音活动检测</string>
+    <string name="header_executor">执行器</string>
+    <string name="pref_enable_camera">启用摄像头</string>
+    <string name="pref_enable_camera_summary">使用摄像头进行视频输入</string>
+    <string name="pref_microphone_volume">麦克风音量</string>
+    <string name="pref_microphone_volume_summary">设置麦克风输入音量</string>
+    <string name="pref_speaker_volume">扬声器音量</string>
+    <string name="pref_speaker_volume_summary">设置扬声器输出音量</string>
+    <string name="pref_denoise">降噪</string>
+    <string name="pref_denoise_summary">去除音频输入中的背景噪音</string>
+    <string name="pref_api_url">API 地址</string>
+    <string name="pref_api_url_summary">Ticos 实时 API 的 URL</string>
+    <string name="pref_api_key">API 密钥</string>
+    <string name="pref_api_key_summary">Ticos API 的认证密钥</string>
+    <string name="pref_model_name">模型名称</string>
+    <string name="pref_model_name_summary">要使用的 AI 模型名称</string>
+    <string name="pref_instructions">指令</string>
+    <string name="pref_instructions_summary">AI 模型的系统指令</string>
+    <string name="pref_voice">语音</string>
+    <string name="pref_voice_summary">用于文本转语音的声音</string>
+    <string name="pref_voice_default">默认</string>
+    <string name="pref_vad_threshold">VAD 阈值</string>
+    <string name="pref_vad_threshold_summary">语音活动检测阈值 (0.0–1.0)</string>
+    <string name="pref_silence_duration">静音持续时间</string>
+    <string name="pref_silence_duration_summary">回合结束前的最小静音持续时间 (毫秒)</string>
+    <string name="pref_executor_addr">执行器地址</string>
+    <string name="pref_executor_addr_summary">执行器服务的地址</string>
+    <string name="pref_agent_id">智能体 ID</string>
+    <string name="pref_agent_id_summary">智能体的唯一 ID</string>
+    <string name="default_agent_id">default_agent</string>
+    <string name="pref_import_config">导入配置</string>
+    <string name="pref_import_config_summary">从 TOML 文件导入配置</string>
+    <string name="pref_export_config">导出配置</string>
+    <string name="pref_export_config_summary">将配置导出到 TOML 文件</string>
+    <string name="pref_edit_config">编辑 TOML 配置</string>
+    <string name="pref_edit_config_summary">查看和编辑完整的 TOML 格式配置</string>
+    <string name="pref_category_agent_config">智能体配置</string>
+    <string name="pref_category_config_operations">配置操作</string>
+    <string name="dialog_edit_toml_title">编辑 TOML 配置</string>
+    <string name="dialog_save">保存</string>
+    <string name="dialog_cancel">取消</string>
+    <string name="toast_config_saved">配置保存成功</string>
+    <string name="toast_config_invalid">无效的 TOML 格式</string>
+    <!-- Device Selection -->
+    <string name="header_devices">设备选择</string>
+    <string name="pref_audio_input_device">音频输入设备</string>
+    <string name="pref_audio_input_device_summary">选择用于录音的麦克风设备</string>
+    <string name="pref_audio_output_device">音频输出设备</string>
+    <string name="pref_audio_output_device_summary">选择用于播放声音的扬声器设备</string>
+    <string name="pref_camera_device">摄像头设备</string>
+    <string name="pref_camera_device_summary">选择用于视频输入的摄像头设备</string>
+
+    <!-- 模型配置 -->
+    <string name="pref_model">模型</string>
+    <string name="pref_model_summary">指定要使用的模型 ID</string>
+    <!-- Speaker Advanced -->
+    <string name="pref_speaker_buffer_time">扬声器缓冲时间</string>
+    <string name="pref_speaker_buffer_time_summary">音频输出缓冲时间（毫秒）</string>
+    <string name="pref_speaker_latency_time">扬声器延迟时间</string>
+    <string name="pref_speaker_latency_time_summary">音频输出延迟时间（毫秒）</string>
+    <string name="pref_speaker_sync">扬声器同步</string>
+    <string name="pref_speaker_sync_summary">启用音频输出同步</string>
+    <!-- 麦克风高级配置 -->
+    <string name="pref_microphone_component">麦克风组件</string>
+    <string name="pref_microphone_component_summary">指定用于音频输入的GStreamer组件</string>
+    <!-- 扬声器高级配置 -->
+    <string name="pref_speaker_component">扬声器组件</string>
+    <string name="pref_speaker_component_summary">指定用于音频输出的GStreamer组件</string>
+    <!-- Camera Advanced -->
+    <string name="pref_camera_component">摄像头组件</string>
+    <string name="pref_camera_component_summary">指定用于视频输入的 GStreamer 组件</string>
+    <string name="pref_camera_upload_enabled">启用摄像头上传</string>
+    <string name="pref_camera_upload_enabled_summary">允许将摄像头视频上传到服务器</string>
+    <string name="pref_camera_visualvoice_enabled">启用视觉语音</string>
+    <string name="pref_camera_visualvoice_enabled_summary">启用视觉语音功能（试验性功能）</string>
+    <string name="pref_video_upload_fps">视频上传帧率</string>
+    <string name="pref_video_upload_fps_summary">上传视频的每秒帧数</string>
+    <!-- RTC Advanced -->
+    <string name="pref_protocol">协议</string>
+    <string name="pref_protocol_summary">通信协议（wss 或 ws）</string>
+    <string name="pref_buffer_time_ms">缓冲时间</string>
+    <string name="pref_buffer_time_ms_summary">实时通信的缓冲时间（毫秒）</string>
+    <string name="pref_host">服务主机</string>
+    <string name="pref_host_summary">设置服务主机地址</string>
+    <!-- VAD Advanced -->
+    <string name="pref_min_audio_duration_ms">最小音频持续时间</string>
+    <string name="pref_min_audio_duration_ms_summary">检测到声音的最小持续时间（毫秒）</string>
+    <string name="pref_silence_threshold">静音阈值</string>
+    <string name="pref_silence_threshold_summary">静音检测的分贝阈值（dB）</string>
+    <string name="pref_audio_sync_delay_ms">音频同步延迟</string>
+    <string name="pref_audio_sync_delay_ms_summary">音频同步的延迟时间（毫秒）</string>
+    <string name="pref_fade_in_ms">淡入时间</string>
+    <string name="pref_fade_in_ms_summary">音频淡入的时间（毫秒）</string>
+    <string name="pref_fade_out_ms">淡出时间</string>
+    <string name="pref_fade_out_ms_summary">音频淡出的时间（毫秒）</string>
+    <string name="pref_debounce_time_ms">防抖时间</string>
+    <string name="pref_debounce_time_ms_summary">VAD 检测的防抖时间（毫秒）</string>
+    <string name="pref_hold_time_ms">保持时间</string>
+    <string name="pref_hold_time_ms_summary">VAD 检测的保持时间（毫秒）</string>
+    <!-- WebSocket -->
+    <string name="header_websocket">WebSocket 配置</string>
+    <string name="pref_connection_timeout_ms">连接超时</string>
+    <string name="pref_connection_timeout_ms_summary">WebSocket 连接超时时间（毫秒）</string>
+    <string name="pref_reconnect_delay_ms">重连延迟</string>
+    <string name="pref_reconnect_delay_ms_summary">WebSocket 重连延迟时间（毫秒）</string>
+    <string name="pref_max_reconnect_attempts">最大重连次数</string>
+    <string name="pref_max_reconnect_attempts_summary">WebSocket 最大重连尝试次数</string>
+    <string name="websocket_demo">回调演示</string>
+    <!-- Model Provider -->
+    <string name="pref_model_provider">模型提供商</string>
+    <string name="pref_model_provider_summary">指定模型的提供商</string>
+    <!-- Voice Selection -->
+    <string name="pref_turn_detection">轮次检测</string>
+    <string name="pref_turn_detection_summary">启用服务器端轮次检测</string>
+    <!-- Silence Duration -->
+    <string name="pref_silence_duration_ms">静音持续时间</string>
+    <string name="pref_silence_duration_ms_summary">检测到静音的最小持续时间（毫秒）</string>
+    <!-- 主界面文本 -->
+    <string name="config_title">配置</string>
+    <string name="config_description">调整 Ticos Agent 设置以自定义其行为。</string>
+    <!-- 调试模式 -->
+    <string name="debug_mode">调试模式</string>
+    <string name="debug_mode_summary">启用 GStreamer 调试日志</string>
+    <string name="debug_switch_tip">切换后需退出应用并重启才能生效</string>
+</resources>

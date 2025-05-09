@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ticos Agent</string>
+    <string name="title_activity_settings">Settings</string>
+    
+    <!-- Main Activity -->
+    <string name="action_settings">Settings</string>
+    <string name="service_status">Service Status</string>
+    <string name="service_running">Running</string>
+    <string name="service_stopped">Stopped</string>
+    <string name="start_service">Start</string>
+    <string name="stop_service">Stop</string>
+    <string name="restart_service">Restart</string>
+    
+    <!-- Settings -->
+    <string name="header_general">General</string>
+    <string name="header_microphone">Microphone</string>
+    <string name="header_speaker">Speaker</string>
+    <string name="header_camera">Camera</string>
+    <string name="header_realtime">Realtime</string>
+    <string name="header_vad">Voice Activity Detection</string>
+    <string name="header_executor">Executor</string>
+    
+    <string name="pref_enable_camera">Enable Camera</string>
+    <string name="pref_enable_camera_summary">Use camera for video input</string>
+    
+    <string name="pref_microphone_volume">Microphone Volume</string>
+    <string name="pref_microphone_volume_summary">Set microphone input volume</string>
+    
+    <string name="pref_speaker_volume">Speaker Volume</string>
+    <string name="pref_speaker_volume_summary">Set speaker output volume</string>
+    
+    <string name="pref_denoise">Noise Reduction</string>
+    <string name="pref_denoise_summary">Remove background noise from audio input</string>
+    
+    <string name="pref_api_url">API URL</string>
+    <string name="pref_api_url_summary">URL for the Ticos Realtime API</string>
+    
+    <string name="pref_api_key">API Key</string>
+    <string name="pref_api_key_summary">Authentication key for the Ticos API</string>
+    
+    <string name="pref_model_name">Model Name</string>
+    <string name="pref_model_name_summary">Name of the AI model to use</string>
+    
+    <string name="pref_instructions">Instructions</string>
+    <string name="pref_instructions_summary">System instructions for the AI model</string>
+    
+    <string name="pref_voice">Voice</string>
+    <string name="pref_voice_summary">Voice to use for text-to-speech</string>
+    
+    <string name="pref_voice_default">Default</string>
+    <string name="pref_vad_threshold">VAD Threshold</string>
+    <string name="pref_vad_threshold_summary">Voice activity detection threshold (0.0–1.0)</string>
+    
+    <string name="pref_silence_duration">Silence Duration</string>
+    <string name="pref_silence_duration_summary">Minimum silence duration before end of turn (ms)</string>
+    
+    <string name="pref_executor_addr">Executor Address</string>
+    <string name="pref_executor_addr_summary">Address for the executor service</string>
+    
+    <string name="pref_agent_id">Agent ID</string>
+    <string name="pref_agent_id_summary">Unique identifier for this agent</string>
+    <string name="default_agent_id">default_agent</string>
+    
+    <string name="pref_import_config">Import Configuration</string>
+    <string name="pref_import_config_summary">Import configuration from a TOML file</string>
+    
+    <string name="pref_export_config">Export Configuration</string>
+    <string name="pref_export_config_summary">Export configuration to a TOML file</string>
+    
+    <string name="pref_edit_config">Edit TOML Configuration</string>
+    <string name="pref_edit_config_summary">View and edit the complete configuration in TOML format</string>
+    
+    <string name="pref_category_agent_config">Agent Configuration</string>
+    <string name="pref_category_config_operations">Configuration Operations</string>
+    
+    <string name="dialog_edit_toml_title">Edit TOML Configuration</string>
+    <string name="dialog_save">Save</string>
+    <string name="dialog_cancel">Cancel</string>
+    <string name="toast_config_saved">Configuration saved successfully</string>
+    <string name="toast_config_invalid">Invalid TOML format</string>
+    
+    <!-- 设备选择相关 -->
+    <string name="header_devices">Device Selection</string>
+    <string name="pref_audio_input_device">Audio Input Device</string>
+    <string name="pref_audio_input_device_summary">Select the microphone device for recording</string>
+    <string name="pref_audio_output_device">Audio Output Device</string>
+    <string name="pref_audio_output_device_summary">Select the speaker device for playback</string>
+    <string name="pref_camera_device">Camera Device</string>
+    <string name="pref_camera_device_summary">Select the camera device for video input</string>
+    
+    <!-- 模型配置 -->
+    <string name="pref_model">Model Name</string>
+    <string name="pref_model_summary">Specify the model name to use</string>
+    
+    <!-- 麦克风高级配置 -->
+    <string name="pref_microphone_component">Microphone Component</string>
+    <string name="pref_microphone_component_summary">Specify the GStreamer component for audio input</string>
+    
+    <!-- 扬声器高级配置 -->
+    <string name="pref_speaker_component">Speaker Component</string>
+    <string name="pref_speaker_component_summary">Specify the GStreamer component for audio output</string>
+    <string name="pref_speaker_buffer_time">Speaker Buffer Time</string>
+    <string name="pref_speaker_buffer_time_summary">Audio output buffer time (ms)</string>
+    <string name="pref_speaker_latency_time">Speaker Latency Time</string>
+    <string name="pref_speaker_latency_time_summary">Audio output latency time (ms)</string>
+    <string name="pref_speaker_sync">Speaker Sync</string>
+    <string name="pref_speaker_sync_summary">Enable audio output synchronization</string>
+    
+    <!-- 摄像头高级配置 -->
+    <string name="pref_camera_component">Camera Component</string>
+    <string name="pref_camera_component_summary">Specify the GStreamer component for video input</string>
+    <string name="pref_camera_upload_enabled">Enable Camera Upload</string>
+    <string name="pref_camera_upload_enabled_summary">Allow uploading camera video to the server</string>
+    <string name="pref_camera_visualvoice_enabled">Enable Visual Voice</string>
+    <string name="pref_camera_visualvoice_enabled_summary">Enable visual voice feature (experimental)</string>
+    <string name="pref_video_upload_fps">Video Upload FPS</string>
+    <string name="pref_video_upload_fps_summary">Frames per second for video upload</string>
+    
+    <!-- 实时通信高级配置 -->
+    <string name="pref_protocol">Protocol</string>
+    <string name="pref_protocol_summary">Communication protocol (wss or ws)</string>
+    <string name="pref_buffer_time_ms">Buffer Time</string>
+    <string name="pref_buffer_time_ms_summary">Buffer time for realtime communication (ms)</string>
+    <string name="pref_host">Host</string>
+    <string name="pref_host_summary">Set the host address of the service</string>
+    
+    <!-- VAD 高级配置 -->
+    <string name="pref_min_audio_duration_ms">Min Audio Duration</string>
+    <string name="pref_min_audio_duration_ms_summary">Minimum duration of detected sound (ms)</string>
+    <string name="pref_silence_threshold">Silence Threshold</string>
+    <string name="pref_silence_threshold_summary">Threshold in dB for silence detection</string>
+    <string name="pref_audio_sync_delay_ms">Audio Sync Delay</string>
+    <string name="pref_audio_sync_delay_ms_summary">Audio sync delay (ms)</string>
+    <string name="pref_fade_in_ms">Fade In Time</string>
+    <string name="pref_fade_in_ms_summary">Audio fade-in time (ms)</string>
+    <string name="pref_fade_out_ms">Fade Out Time</string>
+    <string name="pref_fade_out_ms_summary">Audio fade-out time (ms)</string>
+    <string name="pref_debounce_time_ms">Debounce Time</string>
+    <string name="pref_debounce_time_ms_summary">Debounce time for VAD detection (ms)</string>
+    <string name="pref_hold_time_ms">Hold Time</string>
+    <string name="pref_hold_time_ms_summary">Hold time for VAD detection (ms)</string>
+    
+    <!-- WebSocket 配置 -->
+    <string name="header_websocket">WebSocket Configuration</string>
+    <string name="pref_connection_timeout_ms">Connection Timeout</string>
+    <string name="pref_connection_timeout_ms_summary">WebSocket connection timeout (ms)</string>
+    <string name="pref_reconnect_delay_ms">Reconnect Delay</string>
+    <string name="pref_reconnect_delay_ms_summary">WebSocket reconnect delay (ms)</string>
+    <string name="pref_max_reconnect_attempts">Max Reconnect Attempts</string>
+    <string name="pref_max_reconnect_attempts_summary">Maximum WebSocket reconnect attempts</string>
+    <string name="websocket_demo">Callback Demo</string>
+    
+    <!-- 模型提供商 -->
+    <string name="pref_model_provider">Model Provider</string>
+    <string name="pref_model_provider_summary">Specify the provider for the model</string>
+    
+    <!-- 语音选择 -->
+    <string name="pref_turn_detection">Turn Detection</string>
+    <string name="pref_turn_detection_summary">Enable server-side turn detection</string>
+    
+    <!-- 静音持续时间 -->
+    <string name="pref_silence_duration_ms">Silence Duration</string>
+    <string name="pref_silence_duration_ms_summary">Minimum duration of detected silence (ms)</string>
+    
+    <!-- 主界面文本 -->
+    <string name="config_title">Configuration</string>
+    <string name="config_description">Adjust Ticos Agent settings to customize its behavior.</string>
+    
+    <!-- 调试模式 -->
+    <string name="debug_mode">Debug Mode</string>
+    <string name="debug_mode_summary">Enable GStreamer debug logging</string>
+    <string name="debug_switch_tip">Switching requires exiting the app and restarting to take effect</string>
+</resources>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 语音选项 -->
+    <string-array name="voice_entries">
+        <item>@string/pref_voice_default</item>
+        <item>中文女声 - 婉婉小荷</item>
+        <item>中文女声 - 泡泡</item>
+        <item>中文男声 - 小峰</item>
+        <item>中文男声 - 小刚</item>
+        <item>英文女声 - Emma</item>
+        <item>英文男声 - Mike</item>
+    </string-array>
+    <string-array name="voice_values">
+        <item></item>
+        <item>zh_female_wanwanxiaohe_moon_bigtts</item>
+        <item>zh_female_popo_mars_bigtts</item>
+        <item>zh_male_xiaofeng_moon_bigtts</item>
+        <item>zh_male_xiaogang_mars_bigtts</item>
+        <item>en_female_emma_moon_bigtts</item>
+        <item>en_male_mike_mars_bigtts</item>
+    </string-array>
+</resources>

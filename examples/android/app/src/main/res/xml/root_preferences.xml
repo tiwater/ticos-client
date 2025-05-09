@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory app:title="@string/pref_category_agent_config">
+        <EditTextPreference
+            app:key="agent_id"
+            app:title="@string/pref_agent_id"
+            app:summary="@string/pref_agent_id_summary"
+            app:defaultValue="@string/default_agent_id"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/header_microphone">
+        <!-- <SeekBarPreference
+            app:key="microphone_volume"
+            app:title="@string/pref_microphone_volume"
+            app:summary="@string/pref_microphone_volume_summary"
+            app:defaultValue="100"
+            app:min="0"
+            android:max="100"
+            app:showSeekBarValue="true" /> -->
+            
+        <SwitchPreferenceCompat
+            app:key="denoise"
+            app:title="@string/pref_denoise"
+            app:summary="@string/pref_denoise_summary"
+            app:defaultValue="true" />
+            
+        <EditTextPreference
+            app:key="microphone_component"
+            app:title="@string/pref_microphone_component"
+            app:summary="@string/pref_microphone_component_summary"
+            app:defaultValue="autoaudiosrc"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+    
+    <PreferenceCategory app:title="@string/header_speaker">
+        <!-- <SeekBarPreference
+            app:key="speaker_volume"
+            app:title="@string/pref_speaker_volume"
+            app:summary="@string/pref_speaker_volume_summary"
+            app:defaultValue="60"
+            app:min="0"
+            android:max="100"
+            app:showSeekBarValue="true" /> -->
+            
+        <EditTextPreference
+            app:key="speaker_component"
+            app:title="@string/pref_speaker_component"
+            app:summary="@string/pref_speaker_component_summary"
+            app:defaultValue="autoaudiosink"
+            app:useSimpleSummaryProvider="true" />
+            
+        <EditTextPreference
+            app:key="speaker_buffer_time"
+            app:title="@string/pref_speaker_buffer_time"
+            app:summary="@string/pref_speaker_buffer_time_summary"
+            app:defaultValue="200"
+            app:useSimpleSummaryProvider="true" />
+            
+        <EditTextPreference
+            app:key="speaker_latency_time"
+            app:title="@string/pref_speaker_latency_time"
+            app:summary="@string/pref_speaker_latency_time_summary"
+            app:defaultValue="10"
+            app:useSimpleSummaryProvider="true" />
+            
+        <SwitchPreferenceCompat
+            app:key="speaker_sync"
+            app:title="@string/pref_speaker_sync"
+            app:summary="@string/pref_speaker_sync_summary"
+            app:defaultValue="true" />
+    </PreferenceCategory>
+    
+    <PreferenceCategory app:title="@string/header_camera">
+        <SwitchPreferenceCompat
+            app:key="enable_camera"
+            app:title="@string/pref_enable_camera"
+            app:summary="@string/pref_enable_camera_summary"
+            app:defaultValue="false" />
+            
+        <EditTextPreference
+            app:key="camera_component"
+            app:title="@string/pref_camera_component"
+            app:summary="@string/pref_camera_component_summary"
+            app:defaultValue="ahcsrc"
+            app:useSimpleSummaryProvider="true" />
+            
+        <SwitchPreferenceCompat
+            app:key="camera_upload_enabled"
+            app:title="@string/pref_camera_upload_enabled"
+            app:summary="@string/pref_camera_upload_enabled_summary"
+            app:defaultValue="false" />
+            
+        <SwitchPreferenceCompat
+            app:key="camera_visualvoice_enabled"
+            app:title="@string/pref_camera_visualvoice_enabled"
+            app:summary="@string/pref_camera_visualvoice_enabled_summary"
+            app:defaultValue="false" />
+            
+        <EditTextPreference
+            app:key="video_upload_fps"
+            app:title="@string/pref_video_upload_fps"
+            app:summary="@string/pref_video_upload_fps_summary"
+            app:defaultValue="5"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+    
+    <PreferenceCategory app:title="@string/header_realtime">
+        <EditTextPreference
+            app:key="protocol"
+            app:title="@string/pref_protocol"
+            app:summary="@string/pref_protocol_summary"
+            app:defaultValue="wss"
+            app:useSimpleSummaryProvider="true" />
+            
+        <EditTextPreference
+            app:key="host"
+            app:title="@string/pref_host"
+            app:summary="@string/pref_host_summary"
+            app:defaultValue="stardust2.ticos.cn"
+            app:useSimpleSummaryProvider="true" />
+            
+        <EditTextPreference
+            app:key="api_key"
+            app:title="@string/pref_api_key"
+            app:summary="@string/pref_api_key_summary"
+            app:defaultValue="secret"
+            app:useSimpleSummaryProvider="true" />
+            
+        <EditTextPreference
+            app:key="model"
+            app:title="@string/pref_model"
+            app:summary="@string/pref_model_summary"
+            app:defaultValue="stardust-2.5-turbo"
+            app:useSimpleSummaryProvider="true" />
+            
+        <EditTextPreference
+            app:key="model_provider"
+            app:title="@string/pref_model_provider"
+            app:summary="@string/pref_model_provider_summary"
+            app:defaultValue="openai"
+            app:useSimpleSummaryProvider="true" />
+            
+        <EditTextPreference
+            app:key="instructions"
+            app:title="@string/pref_instructions"
+            app:summary="@string/pref_instructions_summary"
+            app:defaultValue=""
+            app:useSimpleSummaryProvider="true" />
+            
+        <ListPreference
+            app:key="voice"
+            app:title="@string/pref_voice"
+            app:summary="@string/pref_voice_summary"
+            app:defaultValue=""
+            app:entries="@array/voice_entries"
+            app:entryValues="@array/voice_values" 
+            app:useSimpleSummaryProvider="true" />
+            
+        <SwitchPreferenceCompat
+            app:key="turn_detection"
+            app:title="@string/pref_turn_detection"
+            app:summary="@string/pref_turn_detection_summary"
+            app:defaultValue="false" />
+            
+        <EditTextPreference
+            app:key="buffer_time_ms"
+            app:title="@string/pref_buffer_time_ms"
+            app:summary="@string/pref_buffer_time_ms_summary"
+            app:defaultValue="500"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+    
+    <PreferenceCategory app:title="@string/header_vad">
+        <SeekBarPreference
+            app:key="vad_threshold"
+            app:title="@string/pref_vad_threshold"
+            app:summary="@string/pref_vad_threshold_summary"
+            app:defaultValue="85"
+            app:min="0"
+            android:max="100"
+            app:showSeekBarValue="true" />
+            
+        <EditTextPreference
+            app:key="silence_duration_ms"
+            app:title="@string/pref_silence_duration"
+            app:summary="@string/pref_silence_duration_summary"
+            app:defaultValue="520"
+            app:useSimpleSummaryProvider="true" />
+            
+        <EditTextPreference
+            app:key="min_audio_duration_ms"
+            app:title="@string/pref_min_audio_duration_ms"
+            app:summary="@string/pref_min_audio_duration_ms_summary"
+            app:defaultValue="300"
+            app:useSimpleSummaryProvider="true" />
+            
+        <EditTextPreference
+            app:key="silence_threshold"
+            app:title="@string/pref_silence_threshold"
+            app:summary="@string/pref_silence_threshold_summary"
+            app:defaultValue="-30"
+            app:useSimpleSummaryProvider="true" />
+            
+        <EditTextPreference
+            app:key="audio_sync_delay_ms"
+            app:title="@string/pref_audio_sync_delay_ms"
+            app:summary="@string/pref_audio_sync_delay_ms_summary"
+            app:defaultValue="0"
+            app:useSimpleSummaryProvider="true" />
+            
+        <EditTextPreference
+            app:key="fade_in_ms"
+            app:title="@string/pref_fade_in_ms"
+            app:summary="@string/pref_fade_in_ms_summary"
+            app:defaultValue="10"
+            app:useSimpleSummaryProvider="true" />
+            
+        <EditTextPreference
+            app:key="fade_out_ms"
+            app:title="@string/pref_fade_out_ms"
+            app:summary="@string/pref_fade_out_ms_summary"
+            app:defaultValue="10"
+            app:useSimpleSummaryProvider="true" />
+            
+        <EditTextPreference
+            app:key="debounce_time_ms"
+            app:title="@string/pref_debounce_time_ms"
+            app:summary="@string/pref_debounce_time_ms_summary"
+            app:defaultValue="200"
+            app:useSimpleSummaryProvider="true" />
+            
+        <EditTextPreference
+            app:key="hold_time_ms"
+            app:title="@string/pref_hold_time_ms"
+            app:summary="@string/pref_hold_time_ms_summary"
+            app:defaultValue="100"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+    
+    <PreferenceCategory app:title="@string/header_websocket">
+        <EditTextPreference
+            app:key="connection_timeout_ms"
+            app:title="@string/pref_connection_timeout_ms"
+            app:summary="@string/pref_connection_timeout_ms_summary"
+            app:defaultValue="10000"
+            app:useSimpleSummaryProvider="true" />
+            
+        <EditTextPreference
+            app:key="reconnect_delay_ms"
+            app:title="@string/pref_reconnect_delay_ms"
+            app:summary="@string/pref_reconnect_delay_ms_summary"
+            app:defaultValue="5000"
+            app:useSimpleSummaryProvider="true" />
+            
+        <EditTextPreference
+            app:key="max_reconnect_attempts"
+            app:title="@string/pref_max_reconnect_attempts"
+            app:summary="@string/pref_max_reconnect_attempts_summary"
+            app:defaultValue="3"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+    
+    <PreferenceCategory app:title="@string/header_executor">
+        <EditTextPreference
+            app:key="executor_addr"
+            app:title="@string/pref_executor_addr"
+            app:summary="@string/pref_executor_addr_summary"
+            app:defaultValue="127.0.0.1:9999"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+    
+    <PreferenceCategory app:title="@string/header_devices" android:key="devices_category">
+        <!-- <ListPreference
+            app:key="audio_input_device"
+            app:title="@string/pref_audio_input_device"
+            app:summary="@string/pref_audio_input_device_summary"
+            app:useSimpleSummaryProvider="true" />
+            
+        <ListPreference
+            app:key="audio_output_device"
+            app:title="@string/pref_audio_output_device"
+            app:summary="@string/pref_audio_output_device_summary"
+            app:useSimpleSummaryProvider="true" /> -->
+            
+        <ListPreference
+            app:key="camera_device"
+            app:title="@string/pref_camera_device"
+            app:summary="@string/pref_camera_device_summary"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+    
+    <PreferenceCategory app:title="@string/pref_category_config_operations">
+        <Preference
+            app:key="import_config"
+            app:title="@string/pref_import_config"
+            app:summary="@string/pref_import_config_summary" />
+            
+        <Preference
+            app:key="export_config"
+            app:title="@string/pref_export_config"
+            app:summary="@string/pref_export_config_summary" />
+            
+        <Preference
+            app:key="edit_config"
+            app:title="@string/pref_edit_config"
+            app:summary="@string/pref_edit_config_summary" />
+    </PreferenceCategory>
+
+</PreferenceScreen>
