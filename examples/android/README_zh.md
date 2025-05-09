@@ -34,11 +34,13 @@ Ticos Agent Client Demo 是一个简单的 Android 应用程序，用于演示�
    ```
 
 3. 然后构建示例应用：
+   
+   从 Ticos 开发团队获取 Android SDK 开发包：`ticos-common-x.y.z.aar` 和 `ticos-service-x.y.z.aar`，并将它们放置在 `app/libs` 目录中。
    ```bash
    ./gradlew assembleDebug
    ```
 
-4. 安装应用：
+1. 安装应用：
    将 usb 线将开发电脑和 Android 设备的 OTG 端口连接，然后执行：
    ```bash
    ./gradlew installDebug
@@ -63,7 +65,7 @@ Ticos Agent Client Demo 是一个简单的 Android 应用程序，用于演示�
 
 4. 设置界面最下方可以导入/导出配置文件，也可以直接编辑原始 TOML 格式的配置
 
-5. 你也可以直接拷贝配置文件，默认在 SDCARD 下 sdcard/Android/<project_package>/files/config/config.toml。详细说明参见 [SDK 文档](https://github.com/tiwater/ticos-client/sdk/andoid/README.md)
+5. 你也可以直接拷贝配置文件，默认在 SDCARD 下 sdcard/Android/<project_package>/files/config/config.toml。详细说明参见 [SDK 文档](https://github.com/tiwater/ticos-client/sdk/andoid/README_zh.md)
 
 ### 试用
 

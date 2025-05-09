@@ -8,7 +8,7 @@
 
 ### 1. Obtain SDK Packages
 
-Get the Android SDK packages from Ticos: `ticos-common-x.y.z.aar` and `ticos-service-x.y.z.aar`, and place them in your Android project's `libs` directory.
+Get the Android SDK packages from Ticos team: `ticos-common-x.y.z.aar` and `ticos-service-x.y.z.aar`, and place them in your Android project's `libs` directory.
 
 ### 2. Add Dependencies
 

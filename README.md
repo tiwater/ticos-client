@@ -9,13 +9,15 @@ Ticos Client SDK provides a simple and efficient way to communicate with Ticos S
 ```
 ticos-client/
 ├── sdk/
-│   ├── java/          # Java SDK implementation
-│   └── python/        # Python SDK implementation
+│   ├── android/      # Android SDK implementation
+│   ├── java/        # Java SDK implementation
+│   └── python/      # Python SDK implementation
 ├── examples/
-│   ├── java/          # Java client examples
-│   └── python/        # Python client examples
+│   ├── android/     # Android client examples
+│   ├── java/       # Java client examples
+│   └── python/     # Python client examples
 └── .github/
-    └── workflows/     # GitHub Actions workflow definitions
+    └── workflows/   # GitHub Actions workflow definitions
 ```
 
 ## Available SDKs

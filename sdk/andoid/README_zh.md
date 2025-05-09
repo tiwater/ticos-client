@@ -8,7 +8,7 @@
 
 ### 1. 获取开发包
 
-从 Ticos 获取 Android SDK 开发包：`ticos-common-x.y.z.aar` 和 `ticos-service-x.y.z.aar`，并将它们放置在您的 Android 项目 `libs` 目录中。
+从 Ticos 开发团队获取 Android SDK 开发包：`ticos-common-x.y.z.aar` 和 `ticos-service-x.y.z.aar`，并将它们放置在您的 Android 项目 `libs` 目录中。
 
 ### 2. 添加依赖
 
