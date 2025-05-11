@@ -195,7 +195,7 @@ ticosClient.startService()
 ticosClient.stopService()
 ```
 
-#### 4.8 完整示例
+#### 4.8 简要示例
 
 ```kotlin
 class MainActivity : AppCompatActivity() {
