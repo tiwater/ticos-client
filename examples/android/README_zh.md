@@ -34,8 +34,7 @@ Ticos Agent Client Demo 是一个简单的 Android 应用程序，用于演示�
    ```
 
 3. 然后构建示例应用：
-   
-   从 Ticos 开发团队获取 Android SDK 开发包：`ticos-common-x.y.z.aar` 和 `ticos-service-x.y.z.aar`，并将它们放置在 `app/libs` 目录中。
+
    ```bash
    ./gradlew assembleDebug
    ```

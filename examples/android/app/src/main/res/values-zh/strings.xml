@@ -10,6 +10,9 @@
     <string name="start_service">启动</string>
     <string name="stop_service">停止</string>
     <string name="restart_service">重启</string>
+    <string name="service_init_failed">服务初始化失败</string>
+    <string name="service_start_failed">服务启动失败</string>
+    <string name="service_error">服务发生错误</string>
     <!-- Settings -->
     <string name="header_general">常规</string>
     <string name="header_microphone">麦克风</string>

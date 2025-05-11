@@ -35,12 +35,11 @@ This application illustrates how to integrate with the Ticos Agent service, prov
 
 3. Build the demo application:
    
-   Get the Android SDK packages from Ticos team: `ticos-common-x.y.z.aar` and `ticos-service-x.y.z.aar`, and place them in `app/libs` directory.
    ```bash
    ./gradlew assembleDebug
    ```
 
-1. Install the application:
+4. Install the application:
    Connect a USB cable between the development computer and the OTG port of the Android device, then run:
    ```bash
    ./gradlew installDebug

@@ -2,15 +2,18 @@ package com.tiwater.ticos.agent
 
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.IBinder
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.Surface
 import android.view.SurfaceHolder
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.tiwater.ticos.common.ITicosErrorCallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -42,6 +45,15 @@ class MainActivity : AppCompatActivity() {
     private var debugMode = false  // 默认不启用调试模式
     private val permissionQueue = mutableListOf<String>()
     private var currentPermissionRequestCode = 0
+    
+    private val errorCallback = object : ITicosErrorCallback.Stub() {
+        override fun onError(message: String, code: Int) {
+            runOnUiThread {
+                Toast.makeText(this@MainActivity, "GStreamer Error: $message (Code: $code)", Toast.LENGTH_LONG).show()
+                Log.e("GStreamer", "Error: $message, Code: $code")
+            }
+        }
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -109,8 +121,9 @@ class MainActivity : AppCompatActivity() {
     }
     
     override fun onStop() {
-        super.onStop()
+        ticosClient.unregisterErrorCallback(errorCallback)
         ticosClient.unbindService()
+        super.onStop()
     }
     
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -192,6 +205,7 @@ class MainActivity : AppCompatActivity() {
                 Log.d(TAG, "Service connected")
                 updateServiceStatus()
                 previewSurface?.let { ticosClient.setPreviewSurface(it) }
+                ticosClient.registerErrorCallback(errorCallback)
                 
                 // 服务绑定成功后，初始化服务
                 initializeService()
@@ -219,17 +233,31 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 // 先初始化服务
-                withContext(Dispatchers.IO) {
+                val initialized = withContext(Dispatchers.IO) {
                     ticosClient.initialize(ConfigSaveMode.EXTERNAL_STORAGE, debugMode)
                 }
                 
+                if (!initialized) {
+                    Log.e(TAG, "Failed to initialize service")
+                    Toast.makeText(this@MainActivity, getString(R.string.service_init_failed), Toast.LENGTH_LONG).show()
+                    updateServiceStatus()
+                    return@launch
+                }
+                
                 // 然后启动服务
-                withContext(Dispatchers.IO) {
+                val started = withContext(Dispatchers.IO) {
                     ticosClient.startService()
                 }
+                
+                if (!started) {
+                    Log.e(TAG, "Failed to start service")
+                    Toast.makeText(this@MainActivity, getString(R.string.service_start_failed), Toast.LENGTH_LONG).show()
+                }
+                
                 updateServiceStatus()
             } catch (e: Exception) {
                 Log.e(TAG, "Error starting service", e)
+                Toast.makeText(this@MainActivity, getString(R.string.service_error, e.message), Toast.LENGTH_LONG).show()
             }
         }
     }

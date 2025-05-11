@@ -8,11 +8,29 @@
 
 ### 1. 获取开发包
 
-从 Ticos 开发团队获取 Android SDK 开发包：`ticos-common-x.y.z.aar` 和 `ticos-service-x.y.z.aar`，并将它们放置在您的 Android 项目 `libs` 目录中。
+从 Maven 确认 ticos-agent-common 和 ticos-agent-service 的最新版本，例如 0.9.0。
 
 ### 2. 添加依赖
 
 编辑应用模块的 `build.gradle.kts` 文件，增加以下依赖（请确认版本号正确）：
+
+```gradle
+dependencies {
+    implementation("com.tiwater:ticos-agent-common:0.9.0")
+    implementation("com.tiwater:ticos-agent-service:0.9.0")
+    implementation("com.tiwater:ticos-client:0.1.9")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.6.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+}
+```
+
+注：如果 Ticos 团队直接获取的 aar 测试包，例如：
+
+    `ticos-common-x.y.z.aar` 和 `ticos-service-x.y.z.aar`
+
+    则将它们放置在您的 Android 项目 `libs` 目录中。
+
+    应用模块的 `build.gradle.kts` 文件相应依赖改为（请确认版本号正确）：
 
 ```gradle
 dependencies {
@@ -57,12 +75,18 @@ dependencies {
 | `initialize(configSaveMode: ConfigSaveMode, debug: Boolean)` | 初始化服务配置。 |
 | `getServiceConfig()` | 获取当前配置（返回 TOML 格式的字符串）。 |
 | `updateServiceConfig(tomlConfig)` | 更新配置（TOML 格式的字符串）。 |
-| `startService()` | 启动服务。 |
+| `startService()` | 启动服务。启动成功返回 true |
 | `stopService()` | 停止服务。 |
 | `restartService()` | 重启服务。 |
-| `getServiceStatus()` | 获取服务状态。 |
-| `setPreviewSurface(surface)` | 设置视频预览 Surface。 |
+| `getServiceStatus()` | 获取服务状态（返回字符串描述）。 |
+| `isServiceRunning()` | 检查服务是否正在运行（返回布尔值）。 |
 | `registerMessageCallback(callback)` | 注册消息回调。 |
+| `unregisterMessageCallback(callback)` | 注销消息回调。 |
+| `registerErrorCallback(callback)` | 注册错误回调（GStreamer错误通知）。 |
+| `unregisterErrorCallback(callback)` | 注销错误回调。 |
+| `isServiceBound()` | 检查服务是否已绑定。 |
+| `bindService(callback)` | 绑定服务（异步）。 |
+| `unbindService()` | 解绑服务。 |
 
 #### 4.2 创建客户端实例
 
@@ -137,7 +161,30 @@ ticosClient.registerMessageCallback(messageCallback)
 ticosClient.unregisterMessageCallback(messageCallback)
 ```
 
-#### 4.6 启动/停止服务
+#### 4.6 注册错误回调
+
+实现错误回调接口并注册：
+
+```kotlin
+val errorCallback = object : ITicosErrorCallback.Stub() {
+    override fun onError(message: String, code: Int) {
+        // 错误处理逻辑
+        runOnUiThread {
+            Toast.makeText(this@MainActivity, 
+                "GStreamer Error: $message (Code: $code)", 
+                Toast.LENGTH_LONG).show()
+        }
+    }
+}
+
+// 注册回调（在服务连接成功后调用）
+ticosClient.registerErrorCallback(errorCallback)
+
+// 注销回调（在onStop中调用）
+ticosClient.unregisterErrorCallback(errorCallback)
+```
+
+#### 4.7 启动/停止服务
 
 根据需要启动或停止服务：
 
@@ -148,7 +195,7 @@ ticosClient.startService()
 ticosClient.stopService()
 ```
 
-#### 4.7 完整示例
+#### 4.8 完整示例
 
 ```kotlin
 class MainActivity : AppCompatActivity() {
@@ -176,11 +223,13 @@ class MainActivity : AppCompatActivity() {
 }
 ```
 
-### 4.8 注意事项
+请参阅 [Android client demo](https://github.com/tiwater/ticos-client/blob/main/examples/android/README_zh.md)。
+
+### 4.9 注意事项
 
 - 确保在服务绑定成功后（即 `bindService` 回调返回 `true` 时）再调用其他 API。
 - 当前仅提供 `arm64-v8a` 架构支持。
 
 ## 许可证
 
-Copyright © 2023-2025 Tiwater Limited. All rights reserved.
+Copyright 2023-2025 Tiwater Limited. All rights reserved.

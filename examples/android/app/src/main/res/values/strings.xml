@@ -171,4 +171,9 @@
     <string name="debug_mode">Debug Mode</string>
     <string name="debug_mode_summary">Enable GStreamer debug logging</string>
     <string name="debug_switch_tip">Switching requires exiting the app and restarting to take effect</string>
+    
+    <!-- Service Error Messages -->
+    <string name="service_init_failed">Service initialization failed</string>
+    <string name="service_start_failed">Service startup failed</string>
+    <string name="service_error">Service error occurred</string>
 </resources>

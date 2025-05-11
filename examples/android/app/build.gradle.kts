@@ -50,8 +50,8 @@ android {
 
 dependencies {
     // ticos agent sdk 使用本地 AAR 文件
-    implementation(files("libs/ticos-common-0.9.0.aar"))
-    implementation(files("libs/ticos-service-0.9.0.aar"))
+    implementation("com.tiwater:ticos-agent-common:0.9.0")
+    implementation("com.tiwater:ticos-agent-service:0.9.0")
     
     // 添加 SDK 所需的传递依赖
     implementation("com.tiwater:ticos-client:0.1.9")
