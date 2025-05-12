@@ -24,25 +24,6 @@ dependencies {
 }
 ```
 
-注：如果 Ticos 团队直接获取的 aar 测试包，例如：
-
-    `ticos-common-x.y.z.aar` 和 `ticos-service-x.y.z.aar`
-
-    则将它们放置在您的 Android 项目 `libs` 目录中。
-
-    应用模块的 `build.gradle.kts` 文件相应依赖改为（请确认版本号正确）：
-
-```gradle
-dependencies {
-    implementation(files("libs/ticos-common-x.y.z.aar"))
-    implementation(files("libs/ticos-service-x.y.z.aar"))
-    
-    implementation("com.tiwater:ticos-client:0.1.9")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.6.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-}
-```
-
 ### 3. 设置权限
 
 在应用的 `AndroidManifest.xml` 中，添加服务声明和以下权限：

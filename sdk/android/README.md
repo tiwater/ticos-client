@@ -24,25 +24,6 @@ dependencies {
 }
 ```
 
-Note: If the Ticos team provides AAR test packages directly, such as:
-
-    `ticos-common-x.y.z.aar` and `ticos-service-x.y.z.aar`
-
-    Place them in the `libs` directory of your Android project.
-
-    Update dependencies in the `build.gradle.kts` file of your application module accordingly (ensure version numbers are correct):
-
-```gradle
-dependencies {
-    implementation(files("libs/ticos-common-x.y.z.aar"))
-    implementation(files("libs/ticos-service-x.y.z.aar"))
-    
-    implementation("com.tiwater:ticos-client:0.1.9")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.6.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-}
-```
-
 ### 3. Set Permissions
 
 Add service declarations and the following permissions to the application's `AndroidManifest.xml`:
@@ -223,7 +204,7 @@ class MainActivity : AppCompatActivity() {
 }
 ```
 
-Please refer to the [Android client demo](https://github.com/tiwater/ticos-client/blob/main/examples/android/README_zh.md).
+Please refer to the [Android client demo](https://github.com/tiwater/ticos-client/blob/main/examples/android/README.md).
 
 ### 4.9 Considerations
 

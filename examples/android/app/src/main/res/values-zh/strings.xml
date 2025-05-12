@@ -142,5 +142,5 @@
     <!-- 调试模式 -->
     <string name="debug_mode">调试模式</string>
     <string name="debug_mode_summary">启用 GStreamer 调试日志</string>
-    <string name="debug_switch_tip">切换后需退出应用并重启才能生效</string>
+    <string name="debug_switch_tip">启动后再次切换需退出应用并重启才能生效</string>
 </resources>
