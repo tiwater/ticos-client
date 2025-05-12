@@ -8,7 +8,7 @@
 
 ### 1. Obtain the Development Package
 
-Verify the latest versions of `ticos-agent-common` and `ticos-agent-service` from Maven, such as 0.9.0.
+Verify the latest versions of `ticos-agent-common` and `ticos-agent-service` from [Maven Central Repository](https://central.sonatype.com/search?namespace=com.tiwater), such as 0.9.0.
 
 ### 2. Add Dependencies
 

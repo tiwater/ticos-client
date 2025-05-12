@@ -8,7 +8,7 @@
 
 ### 1. 获取开发包
 
-从 Maven 确认 ticos-agent-common 和 ticos-agent-service 的最新版本，例如 0.9.0。
+从 [Maven 中央库](https://central.sonatype.com/search?namespace=com.tiwater) 确认 ticos-agent-common 和 ticos-agent-service 的最新版本，例如 0.9.0。
 
 ### 2. 添加依赖
 
