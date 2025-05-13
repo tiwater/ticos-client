@@ -49,7 +49,6 @@ android {
 }
 
 dependencies {
-    // ticos agent sdk 使用本地 AAR 文件
     implementation("com.tiwater:ticos-agent-common:0.9.0")
     implementation("com.tiwater:ticos-agent-service:0.9.0")
     
