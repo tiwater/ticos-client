@@ -172,10 +172,11 @@ public class TicosClient {
                 // Save the message if local storage is enabled
                 if (storageService != null) {
                     JSONObject storageMessage = new JSONObject();
-                    storageMessage.put("id", UUID.randomUUID().toString());
-                    storageMessage.put("role", "user");
-                    storageMessage.put("content", arguments.optString("content"));
-                    storageMessage.put("datetime", dateFormat.format(new Date()));
+                    long timestamp = System.currentTimeMillis();
+                    storageMessage.put("id", timestamp);
+                    storageMessage.put("role", "assistant");
+                    storageMessage.put("content", message.toString());
+                    storageMessage.put("datetime", dateFormat.format(new Date(timestamp)));
                     storageService.saveMessage(storageMessage);
                     
                     // Check if we need to generate a memory
@@ -213,10 +214,11 @@ public class TicosClient {
         // Save the message if local storage is enabled
         if (storageService != null) {
             JSONObject storageMessage = new JSONObject();
-            storageMessage.put("id", UUID.randomUUID().toString());
+            long timestamp = System.currentTimeMillis();
+            storageMessage.put("id", timestamp);
             storageMessage.put("role", "assistant");
-            storageMessage.put("content", message.optJSONObject("arguments").optString("content"));
-            storageMessage.put("datetime", dateFormat.format(new Date()));
+            storageMessage.put("content", message.toString());
+            storageMessage.put("datetime", dateFormat.format(new Date(timestamp)));
             storageService.saveMessage(storageMessage);
         }
         return true;

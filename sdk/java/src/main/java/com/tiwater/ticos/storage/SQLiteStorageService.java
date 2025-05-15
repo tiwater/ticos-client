@@ -1,6 +1,10 @@
 package com.tiwater.ticos.storage;
 
 import org.json.JSONObject;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,6 +17,7 @@ import java.util.logging.Logger;
 public class SQLiteStorageService implements StorageService {
     private static final Logger LOGGER = Logger.getLogger(SQLiteStorageService.class.getName());
     private static final String DEFAULT_DB_NAME = "ticos.db";
+    private static final String CONFIG_DIR = System.getProperty("user.home") + "/.config/ticos";
     private final String dbUrl;
     private static final String CREATE_MESSAGES_TABLE = 
         "CREATE TABLE IF NOT EXISTS messages (" +
@@ -45,8 +50,23 @@ public class SQLiteStorageService implements StorageService {
      * @param dbName the name of the database file
      */
     public SQLiteStorageService(String dbName) {
-        this.dbUrl = "jdbc:sqlite:" + dbName;
-        initializeDatabase();
+        try {
+            // Create config directory if it doesn't exist
+            Path configDir = Paths.get(CONFIG_DIR);
+            if (!Files.exists(configDir)) {
+                Files.createDirectories(configDir);
+                LOGGER.info("Created config directory: " + configDir);
+            }
+            
+            // Set the database URL to be in the config directory
+            String dbPath = Paths.get(CONFIG_DIR, dbName).toString();
+            this.dbUrl = "jdbc:sqlite:" + dbPath;
+            LOGGER.info("Using database at: " + dbPath);
+            
+            initializeDatabase();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to initialize database directory", e);
+        }
     }
     
     private void initializeDatabase() {
