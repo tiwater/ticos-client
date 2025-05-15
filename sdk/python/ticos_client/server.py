@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import threading
@@ -5,6 +6,8 @@ import time
 import uuid
 from datetime import datetime
 from typing import Dict, Any, Optional, Callable, List, Union
+
+import uvicorn
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,6 +41,8 @@ class UnifiedServer:
         self._setup_routes()
         self.websocket_connections: List[WebSocket] = []
         self.websocket_lock = threading.Lock()
+        self._server = None
+        self._should_exit = False
     
     def _setup_middleware(self):
         """Set up CORS middleware"""
@@ -55,44 +60,42 @@ class UnifiedServer:
         @self.app.get("/health")
         async def health_check():
             return {"status": "ok"}
-        
-        @self.app.post("/api/messages")
-        async def create_message(message: MessageRequest):
-            try:
-                # Save the message
-                if self.storage:
-                    msg = Message(
-                        id=str(uuid.uuid4()),
-                        role=MessageRole.USER,
-                        content=json.dumps(message.dict()),
-                        datetime=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    )
-                    self.storage.save_message(msg)
                 
-                # Handle the message
-                await self._handle_message(message.dict())
+        @self.app.get("/memories/latest")
+        async def get_latest_memories(count: int = 4):
+            """
+            Get the latest memories (messages) from storage.
+            
+            Args:
+                count: Number of latest messages to return (default: 4)
                 
-                return {"status": "success", "message": "Message processed"}
-            except Exception as e:
-                logger.error(f"Error processing message: {e}")
-                raise HTTPException(status_code=500, detail=str(e))
-        
-        @self.app.get("/api/messages")
-        async def get_messages(offset: int = 0, limit: int = 10, desc: bool = True):
+            Returns:
+                List of message objects with role and content fields
+            """
             try:
                 if not self.storage:
                     raise HTTPException(status_code=500, detail="Storage service not available")
                 
-                messages = self.storage.get_messages(offset, limit, desc)
-                return {
-                    "status": "success",
-                    "data": messages,
-                    "total": len(messages),  # Note: This should be total count in a real implementation
-                    "offset": offset,
-                    "limit": limit
-                }
+                # Get the latest messages (in descending order by datetime)
+                messages = self.storage.get_messages(offset=0, limit=count, desc=True)
+                
+                # Convert to the required format
+                result = []
+                for msg in reversed(messages):  # Reverse to get oldest first
+                    try:
+                        content = json.loads(msg["content"]) if isinstance(msg["content"], str) else msg["content"]
+                        result.append({
+                            "role": msg["role"],
+                            "content": content.get("content", content)
+                        })
+                    except Exception as e:
+                        logger.warning(f"Error processing message {msg.get('id')}: {e}")
+                        continue
+                
+                return result
+                
             except Exception as e:
-                logger.error(f"Error getting messages: {e}")
+                logger.error(f"Error getting latest memories: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
         @self.app.websocket("/ws")
@@ -148,50 +151,136 @@ class UnifiedServer:
             logger.error(f"Error handling WebSocket message: {e}")
             await websocket.send_json({"status": "error", "message": str(e)})
     
-    async def _handle_message(self, message: Dict[str, Any]):
-        """Handle incoming message"""
+    async def _handle_message(self, message: Dict[str, Any]) -> bool:
+        """
+        Handle incoming message.
+        
+        Args:
+            message: The incoming message
+            
+        Returns:
+            bool: True if the message was handled by any handler, False otherwise
+        """
+        if not isinstance(message, dict):
+            logger.error(f"Invalid message format: {message}")
+            return False
+            
         message_name = message.get("name")
         arguments = message.get("arguments", {})
+        handled = False
         
-        # Call the appropriate handler
-        if message_name == "motion" and self.motion_handler:
-            self.motion_handler(arguments)
-        elif message_name == "emotion" and self.emotion_handler:
-            self.emotion_handler(arguments)
-        elif message_name == "motion_and_emotion":
-            if self.motion_handler:
-                self.motion_handler(arguments)
-            if self.emotion_handler:
-                self.emotion_handler(arguments)
-        elif self.message_handler:
-            self.message_handler(message)
-        else:
-            logger.info(f"Received unhandled message: {message}")
+        try:
+            # Log the received message for debugging
+            logger.debug(f"Handling message: {message_name} with args: {arguments}")
+            
+            # Call the appropriate handler
+            if message_name == "motion":
+                if self.motion_handler:
+                    self.motion_handler(arguments)
+                    handled = True
+                    logger.debug("Called motion handler")
+                else:
+                    logger.warning("No motion handler registered")
+            elif message_name == "emotion":
+                if self.emotion_handler:
+                    self.emotion_handler(arguments)
+                    handled = True
+                    logger.debug("Called emotion handler")
+                else:
+                    logger.warning("No emotion handler registered")
+            elif message_name == "motion_and_emotion":
+                if self.motion_handler:
+                    self.motion_handler(arguments)
+                    handled = True
+                    logger.debug("Called motion handler (from motion_and_emotion)")
+                if self.emotion_handler:
+                    self.emotion_handler(arguments)
+                    handled = handled or bool(self.emotion_handler)
+                    logger.debug("Called emotion handler (from motion_and_emotion)")
+            elif self.message_handler:
+                self.message_handler(message)
+                handled = True
+                logger.debug("Called generic message handler")
+            else:
+                logger.info(f"Received unhandled message: {message}")
+                
+            return handled
+            
+        except Exception as e:
+            logger.error(f"Error handling message {message_name}: {e}", exc_info=True)
+            return False
     
-    async def broadcast_message(self, message: Dict[str, Any]):
-        """Broadcast a message to all connected WebSocket clients"""
+    async def broadcast_message(self, message: Dict[str, Any]) -> bool:
+        """
+        Broadcast a message to all connected WebSocket clients.
+        
+        Args:
+            message: The message to broadcast
+            
+        Returns:
+            bool: True if the message was sent to at least one client
+        """
         if not self.websocket_connections:
-            return
+            return False
             
         message_str = json.dumps(message)
+        sent_to_any = False
         with self.websocket_lock:
             for connection in self.websocket_connections.copy():
                 try:
                     await connection.send_text(message_str)
+                    sent_to_any = True  # At least one send succeeded
                 except Exception as e:
                     logger.error(f"Error sending WebSocket message: {e}")
                     # Remove the connection if there's an error
                     try:
                         await self._unregister_websocket(connection)
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.error(f"Error unregistering WebSocket: {e}")
+        
+        return sent_to_any
     
-    def run(self):
-        """Run the FastAPI server"""
-        import uvicorn
-        uvicorn.run(
+    def is_running(self) -> bool:
+        """Check if the server is running"""
+        # In a real implementation, we would check if the server is actually running
+        # For now, we'll just return True if the server has been started
+        return hasattr(self, '_is_running') and self._is_running
+
+    async def _startup(self):
+        """Startup the FastAPI server"""
+        config = uvicorn.Config(
             self.app,
             host="0.0.0.0",
             port=self.port,
             log_level="info"
         )
+        self._server = uvicorn.Server(config)
+        await self._server.serve()
+
+    def run(self):
+        """Run the FastAPI server"""
+        self._is_running = True
+        self._should_exit = False
+        try:
+            asyncio.run(self._startup())
+        except Exception as e:
+            logger.error(f"Server error: {e}")
+            raise
+        finally:
+            self._is_running = False
+            self._should_exit = True
+    
+    async def shutdown(self):
+        """Shutdown the server gracefully"""
+        if self._server:
+            self._should_exit = True
+            self._server.should_exit = True
+            # Close all WebSocket connections
+            with self.websocket_lock:
+                for connection in self.websocket_connections:
+                    try:
+                        await connection.close()
+                    except Exception as e:
+                        logger.error(f"Error closing WebSocket connection: {e}")
+                self.websocket_connections.clear()
+            logger.info("Server shutdown complete")

@@ -12,18 +12,47 @@ logger = logging.getLogger(__name__)
 class StorageService:
     """Base interface for storage operations"""
     def save_message(self, message: Message) -> bool:
+        """Save a message to storage"""
         raise NotImplementedError
     
     def get_message(self, message_id: str) -> Optional[Dict[str, Any]]:
+        """Get a message by ID"""
+        raise NotImplementedError
+        
+    def update_message(self, message_id: str, message: Message) -> bool:
+        """Update an existing message"""
+        raise NotImplementedError
+        
+    def delete_message(self, message_id: str) -> bool:
+        """Delete a message by ID"""
         raise NotImplementedError
     
     def get_messages(self, offset: int = 0, limit: int = 10, desc: bool = True) -> List[Dict[str, Any]]:
+        """Get messages with pagination"""
         raise NotImplementedError
     
     def save_memory(self, memory: Memory) -> bool:
+        """Save a memory to storage"""
+        raise NotImplementedError
+        
+    def get_memory(self, memory_id: int) -> Optional[Dict[str, Any]]:
+        """Get a memory by ID"""
+        raise NotImplementedError
+        
+    def update_memory(self, memory_id: int, memory: Memory) -> bool:
+        """Update an existing memory"""
+        raise NotImplementedError
+        
+    def delete_memory(self, memory_id: int) -> bool:
+        """Delete a memory by ID"""
         raise NotImplementedError
     
     def get_latest_memory(self) -> Optional[Dict[str, Any]]:
+        """Get the most recent memory"""
+        raise NotImplementedError
+        
+    def get_memories(self, offset: int = 0, limit: int = 10, desc: bool = True) -> List[Dict[str, Any]]:
+        """Get memories with pagination"""
         raise NotImplementedError
 
 class SQLiteStorageService(StorageService):
@@ -72,6 +101,7 @@ class SQLiteStorageService(StorageService):
         return sqlite3.connect(self.db_path)
     
     def save_message(self, message: Message) -> bool:
+        """Save a message to storage"""
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
@@ -94,6 +124,7 @@ class SQLiteStorageService(StorageService):
             return False
     
     def get_message(self, message_id: str) -> Optional[Dict[str, Any]]:
+        """Get a message by ID"""
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
@@ -114,7 +145,46 @@ class SQLiteStorageService(StorageService):
             logger.error(f"Failed to get message: {e}")
             return None
     
+    def update_message(self, message_id: str, message: Message) -> bool:
+        """Update an existing message"""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    '''
+                    UPDATE messages SET role = ?, content = ?, datetime = ?
+                    WHERE id = ?
+                    ''',
+                    (
+                        message.role.value,
+                        message.content,
+                        message.datetime,
+                        message_id
+                    )
+                )
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to update message: {e}")
+            return False
+    
+    def delete_message(self, message_id: str) -> bool:
+        """Delete a message by ID"""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    'DELETE FROM messages WHERE id = ?',
+                    (message_id,)
+                )
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to delete message: {e}")
+            return False
+    
     def get_messages(self, offset: int = 0, limit: int = 10, desc: bool = True) -> List[Dict[str, Any]]:
+        """Get messages with pagination"""
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
@@ -137,6 +207,7 @@ class SQLiteStorageService(StorageService):
             return []
     
     def save_memory(self, memory: Memory) -> bool:
+        """Save a memory to storage"""
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
@@ -157,7 +228,68 @@ class SQLiteStorageService(StorageService):
             logger.error(f"Failed to save memory: {e}")
             return False
     
+    def get_memory(self, memory_id: int) -> Optional[Dict[str, Any]]:
+        """Get a memory by ID"""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    'SELECT id, type, content, datetime FROM memories WHERE id = ?',
+                    (memory_id,)
+                )
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        'id': row[0],
+                        'type': row[1],
+                        'content': row[2],
+                        'datetime': row[3]
+                    }
+                return None
+        except Exception as e:
+            logger.error(f"Failed to get memory: {e}")
+            return None
+    
+    def update_memory(self, memory_id: int, memory: Memory) -> bool:
+        """Update an existing memory"""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    '''
+                    UPDATE memories SET type = ?, content = ?, datetime = ?
+                    WHERE id = ?
+                    ''',
+                    (
+                        memory.type.value,
+                        memory.content,
+                        memory.datetime,
+                        memory_id
+                    )
+                )
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to update memory: {e}")
+            return False
+    
+    def delete_memory(self, memory_id: int) -> bool:
+        """Delete a memory by ID"""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    'DELETE FROM memories WHERE id = ?',
+                    (memory_id,)
+                )
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to delete memory: {e}")
+            return False
+    
     def get_latest_memory(self) -> Optional[Dict[str, Any]]:
+        """Get the most recent memory"""
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
@@ -176,3 +308,26 @@ class SQLiteStorageService(StorageService):
         except Exception as e:
             logger.error(f"Failed to get latest memory: {e}")
             return None
+            
+    def get_memories(self, offset: int = 0, limit: int = 10, desc: bool = True) -> List[Dict[str, Any]]:
+        """Get memories with pagination"""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                order = "DESC" if desc else "ASC"
+                cursor.execute(
+                    f'SELECT id, type, content, datetime FROM memories ORDER BY datetime {order} LIMIT ? OFFSET ?',
+                    (limit, offset)
+                )
+                return [
+                    {
+                        'id': row[0],
+                        'type': row[1],
+                        'content': row[2],
+                        'datetime': row[3]
+                    }
+                    for row in cursor.fetchall()
+                ]
+        except Exception as e:
+            logger.error(f"Failed to get memories: {e}")
+            return []
