@@ -1,7 +1,6 @@
 package com.tiwater.ticos;
 
 import com.tiwater.ticos.server.UnifiedServer;
-import com.tiwater.ticos.storage.SQLiteStorageService;
 import com.tiwater.ticos.storage.StorageService;
 import com.tiwater.ticos.util.ConfigUtil;
 import com.tiwater.ticos.util.HttpUtil;
@@ -59,8 +58,6 @@ public class TicosClient {
         this.storageService = storageService;
     }
 
-    // Removed generateMemories as it's replaced by generateMemory
-
     /**
      * Interface for handling generic JSON messages received from clients.
      */
@@ -90,16 +87,6 @@ public class TicosClient {
     public TicosClient(int port) {
         this.port = port;
         this.memoryRounds = ConfigUtil.getMemoryRounds();
-        
-        // Initialize SQLite storage by default
-        try {
-            Class.forName("org.sqlite.JDBC");
-            enableLocalStorage(new SQLiteStorageService());
-        } catch (ClassNotFoundException e) {
-            LOGGER.warning("SQLite JDBC driver not found. Local storage will be disabled.");
-        } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Failed to initialize local storage: " + e.getMessage(), e);
-        }
     }
 
     /**

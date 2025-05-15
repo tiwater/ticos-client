@@ -59,6 +59,13 @@ public class SQLiteStorageService implements StorageService {
      */
     public SQLiteStorageService(String dbName) {
         try {
+            // Load SQLite JDBC driver
+            try {
+                Class.forName("org.sqlite.JDBC");
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException("SQLite JDBC driver not found. Please add SQLite JDBC driver to your classpath.", e);
+            }
+            
             // Create config directory if it doesn't exist
             Path configDir = Paths.get(CONFIG_DIR);
             if (!Files.exists(configDir)) {
