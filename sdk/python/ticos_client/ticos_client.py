@@ -270,44 +270,6 @@ class TicosClient:
             return []
         return self.storage.get_messages(offset, limit, desc)
     
-    def save_memory(self, memory_type: Union[MemoryType, str], content: str) -> bool:
-        """
-        Save a memory.
-        
-        Args:
-            memory_type: Type of memory (short_term or long_term)
-            content: Content of the memory
-            
-        Returns:
-            bool: True if the memory was saved successfully
-        """
-        if not self.storage:
-            logger.warning("Local storage is not enabled")
-            return False
-            
-        if isinstance(memory_type, str):
-            try:
-                memory_type = MemoryType(memory_type)
-            except ValueError:
-                logger.error(f"Invalid memory type: {memory_type}")
-                return False
-                
-        memory = Memory(
-            type=memory_type,
-            content=content,
-            datetime=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        )
-        return self.storage.save_memory(memory)
-    
-    def get_latest_memory(self) -> Optional[Dict[str, Any]]:
-        """
-        Get the most recent memory from storage.
-        
-        Returns:
-            Optional[Dict[str, Any]]: The most recent memory or None if no memories exist
-        """
-        return self.storage.get_latest_memory()
-    
     def generate_memory(self) -> None:
         """
         Generate a memory from recent conversation history.

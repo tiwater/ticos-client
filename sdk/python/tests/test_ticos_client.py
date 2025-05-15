@@ -8,7 +8,7 @@ import requests
 from datetime import datetime
 from typing import Dict, Any
 
-from ticos_client import TicosClient, MessageRole, MemoryType
+from ticos_client import TicosClient, MessageRole
 
 
 class TestTicosClient(unittest.TestCase):
@@ -102,39 +102,35 @@ class TestTicosClient(unittest.TestCase):
             loop.close()
     
     def test_save_and_retrieve_memory(self):
-        """Test saving and retrieving a memory."""
-        # Test with enum memory type (SHORT_TERM)
-        short_term_content = "User prefers dark mode"
-        self.assertTrue(self.client.save_memory(MemoryType.SHORT_TERM, short_term_content))
-    
-        # Test with string memory type (LONG_TERM)
-        long_term_content = "This is a long-term memory"
-        self.assertTrue(self.client.save_memory("long_term", long_term_content))
-        
-        # Send a test message to verify it appears in the latest memories
+        """Test sending and retrieving messages via the API."""
+        # Send a test message
         test_msg = {
             "name": "test_message",
             "arguments": {
-                "content": "Tell me a joke"
+                "text": "Tell me a joke"
             }
         }
         self.assertTrue(self.client.send_message(test_msg))
         
-        # Verify we can get the latest memories via the API
+        # Verify we can get the latest messages via the API
         response = requests.get(f"http://localhost:{self.port}/memories/latest?count=4")
         self.assertEqual(response.status_code, 200)
-        memories = response.json()
-        self.assertIsInstance(memories, list)
+        messages = response.json()
+        self.assertIsInstance(messages, list)
         
-        # The test message should be in the latest memories
+        # The test message should be in the latest messages
         found_test_message = False
-        for mem in memories:
-            if mem.get("content") == "Tell me a joke":
+        for msg in messages:
+            content = msg.get("content", {})
+            if not isinstance(content, dict):
+                content = {}
+            args = content.get("arguments", {})
+            if args.get("text") == "Tell me a joke":
                 found_test_message = True
-                self.assertEqual(mem["role"], "user")
+                self.assertEqual(msg["role"], "user")
                 break
         
-        self.assertTrue(found_test_message, "Test message not found in latest memories")
+        self.assertTrue(found_test_message, "Test message not found in latest messages")
     
     def test_invalid_message(self):
         """Test sending an invalid message."""

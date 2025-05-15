@@ -79,16 +79,14 @@ class UnifiedServer:
                 # Get the latest messages (in descending order by datetime)
                 messages = self.storage.get_messages(offset=0, limit=count, desc=True)
                 
-                # Convert to the required format
+                # Return the full message content
                 result = []
                 for msg in reversed(messages):  # Reverse to get oldest first
                     try:
                         content = json.loads(msg["content"]) if isinstance(msg["content"], str) else msg["content"]
-                        # If content is a dict with 'content' key, use that, otherwise use the whole content
-                        content_str = content.get("content") if isinstance(content, dict) else str(content)
                         result.append({
                             "role": msg["role"],
-                            "content": content_str
+                            "content": content  # Return the full content
                         })
                     except Exception as e:
                         logger.warning(f"Error processing message {msg.get('id')}: {e}")
