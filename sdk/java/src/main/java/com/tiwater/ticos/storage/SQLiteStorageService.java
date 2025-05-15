@@ -19,6 +19,14 @@ public class SQLiteStorageService implements StorageService {
     private static final String DEFAULT_DB_NAME = "ticos.db";
     private static final String CONFIG_DIR = System.getProperty("user.home") + "/.config/ticos";
     private final String dbUrl;
+    
+    /**
+     * Get the database URL for this storage service.
+     * @return The JDBC URL for the database
+     */
+    public String getDbUrl() {
+        return dbUrl;
+    }
     private static final String CREATE_MESSAGES_TABLE = 
         "CREATE TABLE IF NOT EXISTS messages (" +
         "id TEXT PRIMARY KEY," +
@@ -165,14 +173,15 @@ public class SQLiteStorageService implements StorageService {
     @Override
     public boolean saveMemory(JSONObject memory) {
         String sql = "INSERT INTO memories (type, content, datetime) VALUES (?, ?, ?)";
-        try (PreparedStatement pstmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setString(1, memory.optString("type"));
             pstmt.setString(2, memory.optString("content"));
             pstmt.setString(3, memory.optString("datetime"));
             pstmt.executeUpdate();
             
-            // Get the generated ID
-            try (ResultSet rs = pstmt.getGeneratedKeys()) {
+            // Get the last inserted row ID using SQLite's last_insert_rowid()
+            try (Statement stmt = connection.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT last_insert_rowid()")) {
                 if (rs.next()) {
                     memory.put("id", rs.getLong(1));
                 }
@@ -250,7 +259,19 @@ public class SQLiteStorageService implements StorageService {
         for (int i = 1; i <= columnCount; i++) {
             String columnName = metaData.getColumnLabel(i);
             Object value = rs.getObject(i);
-            json.put(columnName, value);
+            
+            // Special handling for content field which might be a JSON string
+            if ("content".equalsIgnoreCase(columnName) && value instanceof String) {
+                try {
+                    // Try to parse the content as JSON
+                    json.put(columnName, new JSONObject((String) value));
+                } catch (Exception e) {
+                    // If parsing fails, just use the string value
+                    json.put(columnName, value);
+                }
+            } else {
+                json.put(columnName, value);
+            }
         }
         
         return json;

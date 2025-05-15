@@ -8,8 +8,13 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import java.io.File;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
 import java.util.List;
-
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.*;
 
 /**
@@ -89,6 +94,15 @@ public class TicosClientTest {
     
     @Test
     public void testMessageHandling() throws Exception {
+        // Clear any existing messages
+        if (storageService instanceof SQLiteStorageService) {
+            SQLiteStorageService sqliteStorage = (SQLiteStorageService) storageService;
+            try (Connection connection = DriverManager.getConnection(sqliteStorage.getDbUrl());
+                 Statement stmt = connection.createStatement()) {
+                stmt.execute("DELETE FROM messages");
+            }
+        }
+        
         // Simulate receiving a message
         JSONObject message = new JSONObject()
             .put("name", "test_message")
@@ -104,9 +118,25 @@ public class TicosClientTest {
         // Verify the message was stored
         List<JSONObject> messages = storageService.getMessages(0, 10, true);
         assertFalse("Should have stored the message", messages.isEmpty());
+        
+        // Get the stored message
+        JSONObject storedMessage = messages.get(0);
+        
+        // Debug log the stored message structure
+        System.out.println("Stored message: " + storedMessage.toString(2));
+        
+        // The content should be a string
+        String content = storedMessage.optString("content");
+        assertNotNull("Content should not be null", content);
+        
+        // The content should be the string representation of the original message
+        JSONObject contentObj = new JSONObject(content);
         assertEquals("Should have the test message content", 
             "Test message content", 
-            messages.get(0).getString("content"));
+            contentObj.getJSONObject("arguments").getString("content"));
+        assertEquals("Should have the correct message type",
+            "test_message",
+            contentObj.getString("name"));
     }
     
     @Test
