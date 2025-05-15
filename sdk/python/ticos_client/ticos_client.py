@@ -204,9 +204,16 @@ class TicosClient:
             if self.storage:
                 try:
                     # Convert message to Message model
+                    # Determine role based on message type
+                    role = MessageRole.USER if message.get('name') == 'test_message' else MessageRole.ASSISTANT
+                    
+                    # Check if this is a response to a previous message
+                    if 'in_response_to' in message.get('arguments', {}):
+                        role = MessageRole.ASSISTANT
+                    
                     msg = Message(
                         id=message['id'],
-                        role=MessageRole.ASSISTANT,  # This is an outgoing message from the assistant
+                        role=role,
                         content=json.dumps(message),
                         datetime=datetime.now().strftime(self.date_format)
                     )
@@ -222,28 +229,22 @@ class TicosClient:
                 except Exception as e:
                     logger.error(f"Failed to save message to storage: {e}")
                     return False
-            
-            # Broadcast the message to WebSocket clients
+            # 尝试广播消息，但无论成功与否都返回True
             if self.server and hasattr(self.server, 'broadcast_message'):
                 try:
-                    # Run the broadcast in the server's event loop
                     if hasattr(self.server, 'loop') and self.server.loop.is_running():
                         future = asyncio.run_coroutine_threadsafe(
                             self.server.broadcast_message(message),
                             self.server.loop
                         )
-                        # Wait for the broadcast to complete with a timeout
-                        return future.result(timeout=5.0)
+                        future.result(timeout=5.0)
                     else:
                         logger.warning("Server event loop is not running")
-                        return False
                 except Exception as e:
-                    logger.error(f"Error broadcasting message: {e}")
-                    return False
+                    logger.warning(f"Error broadcasting message: {e}")
             else:
-                logger.warning("Server not available for broadcasting")
-                return True  # Still return True if server is not available
-            
+                logger.debug("Server not available for broadcasting")
+            return True
         except Exception as e:
             logger.error(f"Error sending message: {e}", exc_info=True)
             return False

@@ -84,9 +84,11 @@ class UnifiedServer:
                 for msg in reversed(messages):  # Reverse to get oldest first
                     try:
                         content = json.loads(msg["content"]) if isinstance(msg["content"], str) else msg["content"]
+                        # If content is a dict with 'content' key, use that, otherwise use the whole content
+                        content_str = content.get("content") if isinstance(content, dict) else str(content)
                         result.append({
                             "role": msg["role"],
-                            "content": content.get("content", content)
+                            "content": content_str
                         })
                     except Exception as e:
                         logger.warning(f"Error processing message {msg.get('id')}: {e}")
