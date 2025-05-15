@@ -1,0 +1,114 @@
+package com.tiwater.ticos;
+
+import com.tiwater.ticos.storage.StorageService;
+import com.tiwater.ticos.storage.SQLiteStorageService;
+import com.tiwater.ticos.util.ConfigUtil;
+import org.json.JSONObject;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import java.io.File;
+import java.util.List;
+
+import static org.junit.Assert.*;
+
+/**
+ * Unit tests for TicosClient and related components
+ */
+public class TicosClientTest {
+    private static final String TEST_DB = "test_ticos.db";
+    private TicosClient client;
+    private StorageService storageService;
+    
+    @Before
+    public void setUp() throws Exception {
+        // Delete test database if it exists
+        new File(TEST_DB).delete();
+        
+        // Create a new storage service for testing
+        storageService = new SQLiteStorageService();
+        
+        // Create a client with test port
+        client = new TicosClient(9999);
+        client.enableLocalStorage(storageService);
+        client.start();
+    }
+    
+    @After
+    public void tearDown() {
+        if (client != null) {
+            client.stop();
+        }
+        // Clean up test database
+        new File(TEST_DB).delete();
+    }
+    
+    @Test
+    public void testMessageStorage() throws Exception {
+        // Create a test message
+        JSONObject message = new JSONObject();
+        message.put("id", "test_msg_1");
+        message.put("role", "user");
+        message.put("content", "Hello, world!");
+        message.put("datetime", "2025-05-15 10:00:00");
+        
+        // Store the message
+        storageService.saveMessage(message);
+        
+        // Retrieve the message
+        JSONObject retrieved = storageService.getMessage("test_msg_1");
+        assertNotNull("Message should be retrieved", retrieved);
+        assertEquals("Message content should match", "Hello, world!", retrieved.getString("content"));
+        
+        // Test message retrieval with pagination
+        List<JSONObject> messages = storageService.getMessages(0, 10, true);
+        assertFalse("Should retrieve messages", messages.isEmpty());
+        assertEquals("Should retrieve the test message", "test_msg_1", messages.get(0).getString("id"));
+    }
+    
+    @Test
+    public void testMemoryStorage() throws Exception {
+        // Create a test memory
+        JSONObject memory = new JSONObject();
+        memory.put("type", "long");
+        memory.put("content", "Test memory content");
+        memory.put("datetime", "2025-05-15 10:00:00");
+        
+        // Store the memory
+        storageService.saveMemory(memory);
+        
+        // Get the latest memory
+        JSONObject latest = storageService.getLatestMemory();
+        assertNotNull("Latest memory should be retrieved", latest);
+        assertEquals("Memory content should match", "Test memory content", latest.getString("content"));
+    }
+    
+    @Test
+    public void testMessageHandling() throws Exception {
+        // Simulate receiving a message
+        JSONObject message = new JSONObject()
+            .put("name", "test_message")
+            .put("arguments", new JSONObject()
+                .put("content", "Test message content"));
+        
+        // The client should automatically save this message
+        client.sendMessage(message);
+        
+        // Give it a moment to process
+        Thread.sleep(100);
+        
+        // Verify the message was stored
+        List<JSONObject> messages = storageService.getMessages(0, 10, true);
+        assertFalse("Should have stored the message", messages.isEmpty());
+        assertEquals("Should have the test message content", 
+            "Test message content", 
+            messages.get(0).getString("content"));
+    }
+    
+    @Test
+    public void testConfigUtil() {
+        // Test default values
+        assertEquals("Default API host should match", "stardust2.ticos.cn", ConfigUtil.getApiHost());
+        assertEquals("Default memory rounds should be 18", 18, ConfigUtil.getMemoryRounds());
+    }
+}

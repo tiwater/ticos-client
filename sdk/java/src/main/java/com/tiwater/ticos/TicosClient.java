@@ -1,13 +1,19 @@
 package com.tiwater.ticos;
 
+import com.tiwater.ticos.server.HttpServer;
+import com.tiwater.ticos.storage.SQLiteStorageService;
+import com.tiwater.ticos.storage.StorageService;
+import com.tiwater.ticos.util.ConfigUtil;
+import com.tiwater.ticos.util.HttpUtil;
 import org.json.JSONObject;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Set;
-import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.locks.ReentrantLock;
@@ -37,6 +43,64 @@ public class TicosClient {
     private EmotionHandler emotionHandler;
     private final ReentrantLock lock = new ReentrantLock();
     private final Set<ClientHandler> clients = new CopyOnWriteArraySet<>();
+    private StorageService storageService;
+    private HttpServer httpServer;
+    private int messageCounter = 0;
+    private final int memoryRounds;
+    private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+    /**
+     * Enable local storage with the provided storage service implementation.
+     * If not called, local storage functionality will be disabled.
+     *
+     * @param storageService The storage service implementation to use
+     */
+    public void enableLocalStorage(StorageService storageService) {
+        this.storageService = storageService;
+        try {
+            // Start HTTP server on the same port as WebSocket
+            this.httpServer = new HttpServer(port + 1, storageService); // Use a different port to avoid conflict
+            this.httpServer.start();
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "Failed to start HTTP server: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Generate memories based on recent messages.
+     * This is called automatically every memoryRounds messages.
+     */
+    private void generateMemories() {
+        if (storageService == null) return;
+
+        try {
+            // Get recent messages for summarization
+            int memoryRounds = ConfigUtil.getMemoryRounds();
+            List<JSONObject> recentMessages = storageService.getMessages(0, memoryRounds, true);
+            
+            if (recentMessages.isEmpty()) return;
+            
+            // Get last memory for context
+            JSONObject lastMemoryObj = storageService.getLatestMemory();
+            String lastMemory = lastMemoryObj != null ? lastMemoryObj.optString("content") : "";
+            
+            // Call summarization API
+            String summary = HttpUtil.summarizeConversation(recentMessages, lastMemory);
+            
+            if (summary != null && !summary.isEmpty()) {
+                // Save new memory
+                JSONObject newMemory = new JSONObject();
+                newMemory.put("type", "long");
+                newMemory.put("content", summary);
+                newMemory.put("datetime", dateFormat.format(new Date()));
+                storageService.saveMemory(newMemory);
+                
+                LOGGER.info("Generated new memory: " + summary);
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error generating memories: " + e.getMessage(), e);
+        }
+    }
 
     /**
      * Interface for handling generic JSON messages received from clients.
@@ -66,6 +130,17 @@ public class TicosClient {
      */
     public TicosClient(int port) {
         this.port = port;
+        this.memoryRounds = ConfigUtil.getMemoryRounds();
+        
+        // Initialize SQLite storage by default
+        try {
+            Class.forName("org.sqlite.JDBC");
+            enableLocalStorage(new SQLiteStorageService());
+        } catch (ClassNotFoundException e) {
+            LOGGER.warning("SQLite JDBC driver not found. Local storage will be disabled.");
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Failed to initialize local storage: " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -117,6 +192,9 @@ public class TicosClient {
      */
     public void stop() {
         running = false;
+        if (httpServer != null) {
+            httpServer.stop();
+        }
         cleanup();
         LOGGER.info("Server stopped");
     }
@@ -256,6 +334,33 @@ public class TicosClient {
 
                     String messageStr = new String(messageBytes, StandardCharsets.UTF_8);
                     JSONObject message = new JSONObject(messageStr);
+                    
+                    // Save message to storage if enabled
+                    if (storageService != null) {
+                        try {
+                            // Generate ID if not present
+                            if (!message.has("id")) {
+                                message.put("id", "msg_" + System.currentTimeMillis());
+                            }
+                            
+                            // Add timestamp if not present
+                            if (!message.has("datetime")) {
+                                message.put("datetime", dateFormat.format(new Date()));
+                            }
+                            
+                            // Save message
+                            storageService.saveMessage(message);
+                            
+                            // Check if we need to generate memories
+                            messageCounter++;
+                            if (messageCounter >= memoryRounds) {
+                                messageCounter = 0;
+                                new Thread(() -> generateMemories()).start();
+                            }
+                        } catch (Exception e) {
+                            LOGGER.log(Level.SEVERE, "Error saving message: " + e.getMessage(), e);
+                        }
+                    }
                     
                     if (messageHandler != null) {
                         messageHandler.handleMessage(message);

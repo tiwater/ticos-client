@@ -1,25 +1,41 @@
 # Ticos Client Java SDK
 
-A Java client SDK for communicating with Ticos Server. This client SDK allows you to create applications that can send messages, handle motion and emotion commands, and maintain a heartbeat connection with the server.
+A Java client SDK for communicating with Ticos Server. This client SDK allows you to create applications that can send messages, handle motion and emotion commands, maintain a heartbeat connection with the server, and store conversation history and memories locally using SQLite.
 
 > **Note**: Check the latest SDK version at [GitHub Releases](https://github.com/tiwater/ticos-client/tags?q=java-*)
 
 ## Installation
 
-Add the following dependency to your project's `pom.xml`:
+Add the following dependencies to your project's `pom.xml`:
 
 ```xml
-<dependency>
-    <groupId>com.tiwater</groupId>
-    <artifactId>ticos-client</artifactId>
-    <version>0.1.8</version>
-</dependency>
+<dependencies>
+    <dependency>
+        <groupId>com.tiwater</groupId>
+        <artifactId>ticos-client</artifactId>
+        <version>0.2.0</version>
+    </dependency>
+    <dependency>
+        <groupId>org.xerial</groupId>
+        <artifactId>sqlite-jdbc</artifactId>
+        <version>3.44.1.0</version>
+    </dependency>
+    <dependency>
+        <groupId>com.moandjiez.toml</groupId>
+        <artifactId>toml4j</artifactId>
+        <version>0.7.2</version>
+    </dependency>
+</dependencies>
 ```
 
-Or if you're using Gradle, add this to your `build.gradle`:
+Or if you're using Gradle, add these to your `build.gradle`:
 
 ```groovy
-implementation 'com.tiwater:ticos-client:0.1.8'
+dependencies {
+    implementation 'com.tiwater:ticos-client:0.2.0'
+    implementation 'org.xerial:sqlite-jdbc:3.44.1.0'
+    implementation 'com.moandjiez.toml:toml4j:0.7.2'
+}
 ```
 
 ## Usage
@@ -92,6 +108,10 @@ public class Example {
 - Automatic handling of connection management
 - Thread-safe operations
 - Support for different message types (general messages, motion commands, emotion commands)
+- Local storage of conversation history and memories using SQLite
+- Automatic memory generation from conversation history
+- RESTful API for accessing stored data
+- Configuration via TOML config file
 - Proper resource cleanup
 
 ## API Reference
@@ -131,6 +151,24 @@ Creates a new Ticos client instance.
 - `void setEmotionHandler(EmotionHandler handler)`
   - Set handler for emotion commands
   - handler: Function that takes a JSONObject parameters as parameter
+
+- `void storeMessage(JSONObject message)`
+  - Store a message in the local database
+  - message: A JSONObject containing the message data
+
+- `void storeMemory(JSONObject memory)`
+  - Store a memory in the local database
+  - memory: A JSONObject containing the memory data
+
+- `JSONObject retrieveMessage(String id)`
+  - Retrieve a message from the local database
+  - id: The ID of the message to retrieve
+  - Returns the message as a JSONObject
+
+- `JSONObject retrieveMemory(String id)`
+  - Retrieve a memory from the local database
+  - id: The ID of the memory to retrieve
+  - Returns the memory as a JSONObject
 
 ### Message Format
 
@@ -189,6 +227,28 @@ For more examples, check out the [examples/java](../../examples/java) directory.
 
 - Java 8 or higher
 - org.json library (automatically managed by Maven/Gradle)
+- SQLite JDBC driver (automatically managed by Maven/Gradle)
+- TOML4J library (automatically managed by Maven/Gradle)
+
+## Database Schema
+
+The local storage uses the following SQLite schema:
+
+```sql
+CREATE TABLE messages (
+    id TEXT PRIMARY KEY,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    datetime TEXT NOT NULL
+);
+
+CREATE TABLE memories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL,
+    content TEXT NOT NULL,
+    datetime TEXT NOT NULL
+);
+```
 
 ## Development
 
