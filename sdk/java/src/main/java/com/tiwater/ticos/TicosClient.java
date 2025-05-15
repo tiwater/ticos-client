@@ -1,17 +1,25 @@
 package com.tiwater.ticos;
 
 import com.tiwater.ticos.server.UnifiedServer;
+import com.tiwater.ticos.storage.SQLiteStorageService;
 import com.tiwater.ticos.storage.StorageService;
 import com.tiwater.ticos.util.ConfigUtil;
 import com.tiwater.ticos.util.HttpUtil;
 import org.json.JSONObject;
 
+import java.io.*;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.logging.Level;
+import java.util.UUID;
 
 /**
  * TicosClient is a Java server SDK for handling Ticos Agent connections.
@@ -34,7 +42,7 @@ public class TicosClient {
     private MotionHandler motionHandler;
     private EmotionHandler emotionHandler;
     private final ReentrantLock lock = new ReentrantLock();
-    private final Set<ClientHandler> clients = new CopyOnWriteArraySet<>();
+    // Removed ClientHandler as it's not used in the current implementation
     private StorageService storageService;
     private UnifiedServer unifiedServer;
     private int messageCounter = 0;
@@ -51,86 +59,74 @@ public class TicosClient {
         this.storageService = storageService;
     }
 
-    /**
-     * Generate memories based on recent messages.
-     * This is called automatically every memoryRounds messages.
-     */
-    private void generateMemories() {
-        if (storageService == null) return;
+    // Removed generateMemories as it's replaced by generateMemory
 
-        try {
-            // Get recent messages for summarization
+    /**
+     * Interface for handling generic JSON messages received from clients.
      */
     public interface MessageHandler {
         void handleMessage(JSONObject message);
     }
     
     /**
-     * Interface for handling motion events received from clients.
+     * Interface for handling motion-specific messages.
      */
     public interface MotionHandler {
         void handleMotion(JSONObject parameters);
     }
     
     /**
-     * Interface for handling emotion events received from clients.
+     * Interface for handling emotion-specific messages.
      */
     public interface EmotionHandler {
         void handleEmotion(JSONObject parameters);
     }
     
     /**
-     * Sets the handler for processing messages received from clients.
+     * Constructs a TicosClient server.
      * 
-     * @param handler the message handler
+     * @param port The port number to listen on
+     */
+    public TicosClient(int port) {
+        this.port = port;
+        this.memoryRounds = ConfigUtil.getMemoryRounds();
+        
+        // Initialize SQLite storage by default
+        try {
+            Class.forName("org.sqlite.JDBC");
+            enableLocalStorage(new SQLiteStorageService());
+        } catch (ClassNotFoundException e) {
+            LOGGER.warning("SQLite JDBC driver not found. Local storage will be disabled.");
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Failed to initialize local storage: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Sets the handler for generic JSON messages.
      */
     public void setMessageHandler(MessageHandler handler) {
         this.messageHandler = handler;
     }
     
     /**
-     * Sets the handler for processing motion events received from clients.
-     * 
-     * @param handler the motion handler
+     * Sets the handler for motion messages.
      */
     public void setMotionHandler(MotionHandler handler) {
         this.motionHandler = handler;
     }
     
     /**
-     * Sets the handler for processing emotion events received from clients.
-     * 
-     * @param handler the emotion handler
+     * Sets the handler for emotion messages.
      */
     public void setEmotionHandler(EmotionHandler handler) {
         this.emotionHandler = handler;
     }
 
     /**
-     * Constructs a new TicosClient with the specified port.
+     * Starts the server and begins listening for connections.
      * 
-     * @param port The port to listen on for client connections
-     */
-    public TicosClient(int port) {
-        this.port = port;
-        this.memoryRounds = ConfigUtil.getMemoryRounds();
-    }
-    
-    /**
-     * Constructs a new TicosClient with the specified port and memory rounds.
-     * 
-     * @param port The port to listen on for client connections
-     * @param memoryRounds The number of messages after which to generate a memory
-     */
-    public TicosClient(int port, int memoryRounds) {
-        this.port = port;
-        this.memoryRounds = memoryRounds;
-    }
-
-    /**
-     * Starts the server and begins accepting client connections.
-     * 
-     * @return true if the server started successfully, false otherwise
+     * @return true if server started successfully, false otherwise
      */
     public boolean start() {
         try {
@@ -153,17 +149,10 @@ public class TicosClient {
             unifiedServer.stop();
             LOGGER.info("Server stopped");
         }
-        cleanup();
     }
 
     private void cleanup() {
-        lock.lock();
-        try {
-            // Clear all client references
-            clients.clear();
-        } finally {
-            lock.unlock();
-        }
+        // Cleanup resources if needed
     }
 
     /**
@@ -175,9 +164,6 @@ public class TicosClient {
      */
     public void handleWebSocketMessage(JSONObject message, Object clientChannel) {
         try {
-            // Add client to the set if not already present
-            clients.add(clientChannel);
-            
             // Process the message
             String name = message.optString("name");
             JSONObject arguments = message.optJSONObject("arguments");
@@ -217,8 +203,8 @@ public class TicosClient {
     /**
      * Sends a message to all connected clients.
      * 
-     * @param message The message to send
-     * @return true if the message was sent successfully
+     * @param message The message to broadcast, should contain 'name' and 'parameters' fields
+     * @return true if message was sent to at least one client successfully
      */
     public boolean sendMessage(JSONObject message) {
         // Send message to all connected clients
@@ -238,8 +224,6 @@ public class TicosClient {
 
     /**
      * Send a message to all connected WebSocket clients
-     * 
-     * @param message The message to send
      */
     private void sendMessageToAll(JSONObject message) {
         if (unifiedServer != null) {
@@ -247,6 +231,8 @@ public class TicosClient {
         }
     }
 
+    // Removed receiveExactly as it's not used in the current implementation
+    
     /**
      * Generates a memory from the conversation history
      * This is called after a certain number of messages have been processed
