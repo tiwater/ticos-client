@@ -1,0 +1,20 @@
+# Testing
+pytest>=6.2.5
+pytest-cov>=2.12.1
+pytest-asyncio>=0.15.1
+pytest-mock>=3.6.1
+
+# Linting
+black>=21.7b0
+isort>=5.9.0
+flake8>=3.9.2
+mypy>=0.910
+
+# Type stubs
+types-python-dateutil>=2.8.0
+typing-extensions>=3.10.0.0
+
+# Documentation
+sphinx>=4.0.2
+sphinx-rtd-theme>=0.5.2
+sphinx-autodoc-typehints>=1.12.0

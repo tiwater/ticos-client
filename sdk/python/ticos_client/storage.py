@@ -1,0 +1,178 @@
+import json
+import os
+import sqlite3
+from pathlib import Path
+from typing import List, Dict, Any, Optional, Union
+from datetime import datetime
+import logging
+from .models import Message, Memory, MessageRole, MemoryType
+
+logger = logging.getLogger(__name__)
+
+class StorageService:
+    """Base interface for storage operations"""
+    def save_message(self, message: Message) -> bool:
+        raise NotImplementedError
+    
+    def get_message(self, message_id: str) -> Optional[Dict[str, Any]]:
+        raise NotImplementedError
+    
+    def get_messages(self, offset: int = 0, limit: int = 10, desc: bool = True) -> List[Dict[str, Any]]:
+        raise NotImplementedError
+    
+    def save_memory(self, memory: Memory) -> bool:
+        raise NotImplementedError
+    
+    def get_latest_memory(self) -> Optional[Dict[str, Any]]:
+        raise NotImplementedError
+
+class SQLiteStorageService(StorageService):
+    """SQLite implementation of StorageService"""
+    
+    def __init__(self, db_name: str = "ticos.db"):
+        self.db_name = db_name
+        self.db_path = self._get_db_path()
+        self._init_db()
+    
+    def _get_db_path(self) -> str:
+        """Get the database path, creating the config directory if needed"""
+        config_dir = os.path.join(Path.home(), ".config", "ticos")
+        os.makedirs(config_dir, exist_ok=True)
+        return os.path.join(config_dir, self.db_name)
+    
+    def _init_db(self):
+        """Initialize the database with required tables"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Create messages table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS messages (
+                    id TEXT PRIMARY KEY,
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    datetime TEXT NOT NULL
+                )
+            ''')
+            
+            # Create memories table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS memories (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    type TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    datetime TEXT NOT NULL
+                )
+            ''')
+            
+            conn.commit()
+    
+    def _get_connection(self):
+        """Get a new database connection"""
+        return sqlite3.connect(self.db_path)
+    
+    def save_message(self, message: Message) -> bool:
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    '''
+                    INSERT OR REPLACE INTO messages (id, role, content, datetime)
+                    VALUES (?, ?, ?, ?)
+                    ''',
+                    (
+                        message.id,
+                        message.role.value,
+                        message.content,
+                        message.datetime
+                    )
+                )
+                conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Failed to save message: {e}")
+            return False
+    
+    def get_message(self, message_id: str) -> Optional[Dict[str, Any]]:
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    'SELECT id, role, content, datetime FROM messages WHERE id = ?',
+                    (message_id,)
+                )
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        'id': row[0],
+                        'role': row[1],
+                        'content': row[2],
+                        'datetime': row[3]
+                    }
+                return None
+        except Exception as e:
+            logger.error(f"Failed to get message: {e}")
+            return None
+    
+    def get_messages(self, offset: int = 0, limit: int = 10, desc: bool = True) -> List[Dict[str, Any]]:
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                order = "DESC" if desc else "ASC"
+                cursor.execute(
+                    f'SELECT id, role, content, datetime FROM messages ORDER BY datetime {order} LIMIT ? OFFSET ?',
+                    (limit, offset)
+                )
+                return [
+                    {
+                        'id': row[0],
+                        'role': row[1],
+                        'content': row[2],
+                        'datetime': row[3]
+                    }
+                    for row in cursor.fetchall()
+                ]
+        except Exception as e:
+            logger.error(f"Failed to get messages: {e}")
+            return []
+    
+    def save_memory(self, memory: Memory) -> bool:
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    '''
+                    INSERT INTO memories (type, content, datetime)
+                    VALUES (?, ?, ?)
+                    ''',
+                    (
+                        memory.type.value,
+                        memory.content,
+                        memory.datetime
+                    )
+                )
+                conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Failed to save memory: {e}")
+            return False
+    
+    def get_latest_memory(self) -> Optional[Dict[str, Any]]:
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    'SELECT id, type, content, datetime FROM memories ORDER BY datetime DESC LIMIT 1'
+                )
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        'id': row[0],
+                        'type': row[1],
+                        'content': row[2],
+                        'datetime': row[3]
+                    }
+                return None
+        except Exception as e:
+            logger.error(f"Failed to get latest memory: {e}")
+            return None

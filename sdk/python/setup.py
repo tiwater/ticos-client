@@ -1,19 +1,51 @@
 from setuptools import setup, find_packages
 
+with open("README.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
+
+with open("requirements.txt", "r", encoding="utf-8") as fh:
+    requirements = fh.read().splitlines()
+
 setup(
     name="ticos-client",
-    version="0.1.9",
+    version="0.2.0",  # Major version bump due to significant changes
     author="Ticos Team",
     author_email="admin@tiwater.com",
-    description="A client SDK for communicating with Ticos Server",
-    long_description=open("README.md").read(),
+    description="A client SDK for the Ticos Agent system with HTTP and WebSocket support",
+    long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/tiwater/ticos-client",
-    packages=find_packages(),
+    packages=find_packages(exclude=["tests", "tests.*"]),
+    package_data={
+        "ticos_client": ["py.typed"],
+    },
     classifiers=[
-        "Programming Language :: Python :: 3",
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: Developers",
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Topic :: Software Development :: Libraries :: Python Modules",
+        "Typing :: Typed",
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.7",
+    install_requires=requirements,
+    extras_require={
+        "dev": [
+            "pytest>=6.0",
+            "pytest-cov>=2.0",
+            "mypy>=0.910",
+            "black>=21.7b0",
+            "isort>=5.9.0",
+            "flake8>=3.9.0",
+        ],
+    },
+    project_urls={
+        "Bug Reports": "https://github.com/tiwater/ticos-client/issues",
+        "Source": "https://github.com/tiwater/ticos-client",
+    },
 )

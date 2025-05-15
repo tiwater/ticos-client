@@ -1,76 +1,77 @@
 # Ticos Client Python SDK
 
-A Python SDK for communicating with Ticos Server. This client SDK allows you to create applications that can send messages, handle motion and emotion commands, and maintain a heartbeat connection with the server.
+A Python SDK for the Ticos Agent system with support for both HTTP RESTful API and WebSocket connections. This SDK allows you to create applications that can send and receive messages, handle motion and emotion commands, and store messages and memories locally.
 
-> **Note**: Check the latest SDK version at [GitHub Releases](https://github.com/tiwater/ticos-client/tags?q=python-*)
+## Features
+
+- Unified server supporting both HTTP and WebSocket connections
+- Local message and memory storage using SQLite
+- Asynchronous message handling
+- Type hints for better development experience
+- Extensible architecture with support for custom handlers
 
 ## Installation
 
 ```bash
-pip install ticos-client==0.1.8
+pip install ticos-client>=0.2.0
 ```
 
-## Usage
+## Quick Start
+
+### Basic Usage
 
 ```python
-from ticos_client import TicosClient
-import time
+import asyncio
+from ticos_client import TicosClient, DefaultMessageHandler
 
-def message_handler(message):
-    print(f"Received message: {message}")
+class CustomMessageHandler(DefaultMessageHandler):
+    def handle_message(self, message):
+        print(f"Received message: {message}")
+        
+        if message.get('name') == 'greeting':
+            name = message.get('arguments', {}).get('name', 'stranger')
+            print(f"Hello, {name}!")
 
-def motion_handler(parameters):
-    print(f"Received motion command with parameters: {parameters}")
-
-def emotion_handler(parameters):
-    print(f"Received emotion command with parameters: {parameters}")
-
-def main():
+async def main():
     # Create and start the client
     client = TicosClient(port=9999)
     
-    # Set message handlers
-    client.set_message_handler(message_handler)
-    client.set_motion_handler(motion_handler)
-    client.set_emotion_handler(emotion_handler)
+    # Enable local storage (SQLite by default)
+    client.enable_local_storage()
     
-    # Start the client
+    # Set message handler
+    client.set_message_handler(CustomMessageHandler().handle_message)
+    
+    # Start the server
     if not client.start():
-        print("Failed to start client")
+        print("Failed to start server")
         return
     
     try:
-
-        # Example: Send a motion command
-        client.send_message({
-            "name": "motion",
-            "arguments": {
-                "motion_tag": "hug",
-                "speed": 1.0,
-                "repeat": 3
-            }
-        })
-
-        # Example: Send an emotion command
-        client.send_message({
-            "name": "emotion",
-            "arguments": {
-                "emotion_tag": "smile",
-                "intensity": 0.8,
-                "duration": 2.5
-            }
-        })
+        print("Server started. Press Ctrl+C to stop.")
         
-        # Keep the main thread running
-        while True:
-            time.sleep(1)
+        # Send a welcome message
+        welcome_msg = {
+            "name": "greeting",
+            "arguments": {
+                "name": "Ticos User"
+            }
+        }
+        
+        if client.send_message(welcome_msg):
+            print("Sent welcome message")
+        
+        # Keep the server running
+        while client.is_running():
+            await asyncio.sleep(1)
+            
     except KeyboardInterrupt:
-        print("Stopping client...")
+        print("Shutting down...")
     finally:
         client.stop()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
 ```
 
 ## API Reference
@@ -80,24 +81,43 @@ if __name__ == "__main__":
 #### Constructor
 
 ```python
-client = TicosClient(port: int)
+client = TicosClient(port: int = 9999)
 ```
 
 Creates a new Ticos client instance.
 
 #### Methods
 
+- `enable_local_storage(storage: Optional[StorageService] = None) -> None`
+  - Enable local storage with an optional custom storage service
+  - If no storage service is provided, a default SQLiteStorageService will be used
+
 - `start() -> bool`
-  - Start the client
-  - Returns True if startup successful
+  - Start the HTTP and WebSocket server
+  - Returns True if startup was successful
 
-- `stop()`
-  - Stop the client and clean up resources
+- `stop() -> None`
+  - Stop the server and clean up resources
 
-- `send_message(message: dict) -> bool`
-  - Send a message to the server
-  - message: A dictionary containing the message data
-  - Returns True if message sent successfully
+- `is_running() -> bool`
+  - Check if the server is running
+  - Returns True if the server is running
+
+- `send_message(message: Dict[str, Any]) -> bool`
+  - Send a message to all connected WebSocket clients
+  - Returns True if the message was sent successfully
+
+- `get_messages(offset: int = 0, limit: int = 10, desc: bool = True) -> List[Dict[str, Any]]`
+  - Get stored messages
+  - Returns a list of message dictionaries
+
+- `save_memory(memory_type: Union[MemoryType, str], content: str) -> bool`
+  - Save a memory
+  - Returns True if the memory was saved successfully
+
+- `get_latest_memory() -> Optional[Dict[str, Any]]`
+  - Get the latest saved memory
+  - Returns the memory dictionary or None if no memories exist
 
 - `set_message_handler(handler: Callable[[dict], None])`
   - Set handler for general messages
