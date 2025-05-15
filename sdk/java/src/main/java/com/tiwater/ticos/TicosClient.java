@@ -1,24 +1,17 @@
 package com.tiwater.ticos;
 
-import com.tiwater.ticos.server.HttpServer;
-import com.tiwater.ticos.storage.SQLiteStorageService;
+import com.tiwater.ticos.server.UnifiedServer;
 import com.tiwater.ticos.storage.StorageService;
 import com.tiwater.ticos.util.ConfigUtil;
 import com.tiwater.ticos.util.HttpUtil;
 import org.json.JSONObject;
 
-import java.io.*;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Logger;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * TicosClient is a Java server SDK for handling Ticos Agent connections.
@@ -35,7 +28,6 @@ public class TicosClient {
     private static final String TAG = "TicosClient";
     private static final Logger LOGGER = Logger.getLogger(TAG);
     private final int port;
-    private ServerSocket serverSocket;
     private volatile boolean running = true;
     private Thread acceptThread;
     private MessageHandler messageHandler;
@@ -44,7 +36,7 @@ public class TicosClient {
     private final ReentrantLock lock = new ReentrantLock();
     private final Set<ClientHandler> clients = new CopyOnWriteArraySet<>();
     private StorageService storageService;
-    private HttpServer httpServer;
+    private UnifiedServer unifiedServer;
     private int messageCounter = 0;
     private final int memoryRounds;
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -57,13 +49,6 @@ public class TicosClient {
      */
     public void enableLocalStorage(StorageService storageService) {
         this.storageService = storageService;
-        try {
-            // Start HTTP server on the same port as WebSocket
-            this.httpServer = new HttpServer(port + 1, storageService); // Use a different port to avoid conflict
-            this.httpServer.start();
-        } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Failed to start HTTP server: " + e.getMessage(), e);
-        }
     }
 
     /**
@@ -75,114 +60,87 @@ public class TicosClient {
 
         try {
             // Get recent messages for summarization
-            int memoryRounds = ConfigUtil.getMemoryRounds();
-            List<JSONObject> recentMessages = storageService.getMessages(0, memoryRounds, true);
-            
-            if (recentMessages.isEmpty()) return;
-            
-            // Get last memory for context
-            JSONObject lastMemoryObj = storageService.getLatestMemory();
-            String lastMemory = lastMemoryObj != null ? lastMemoryObj.optString("content") : "";
-            
-            // Call summarization API
-            String summary = HttpUtil.summarizeConversation(recentMessages, lastMemory);
-            
-            if (summary != null && !summary.isEmpty()) {
-                // Save new memory
-                JSONObject newMemory = new JSONObject();
-                newMemory.put("type", "long");
-                newMemory.put("content", summary);
-                newMemory.put("datetime", dateFormat.format(new Date()));
-                storageService.saveMemory(newMemory);
-                
-                LOGGER.info("Generated new memory: " + summary);
-            }
-        } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Error generating memories: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Interface for handling generic JSON messages received from clients.
      */
     public interface MessageHandler {
         void handleMessage(JSONObject message);
     }
-
+    
     /**
-     * Interface for handling motion-specific messages.
+     * Interface for handling motion events received from clients.
      */
     public interface MotionHandler {
         void handleMotion(JSONObject parameters);
     }
-
+    
     /**
-     * Interface for handling emotion-specific messages.
+     * Interface for handling emotion events received from clients.
      */
     public interface EmotionHandler {
         void handleEmotion(JSONObject parameters);
     }
-
+    
     /**
-     * Constructs a TicosClient server.
+     * Sets the handler for processing messages received from clients.
      * 
-     * @param port The port number to listen on
-     */
-    public TicosClient(int port) {
-        this.port = port;
-        this.memoryRounds = ConfigUtil.getMemoryRounds();
-        
-        // Initialize SQLite storage by default
-        try {
-            Class.forName("org.sqlite.JDBC");
-            enableLocalStorage(new SQLiteStorageService());
-        } catch (ClassNotFoundException e) {
-            LOGGER.warning("SQLite JDBC driver not found. Local storage will be disabled.");
-        } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Failed to initialize local storage: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Sets the handler for generic JSON messages.
+     * @param handler the message handler
      */
     public void setMessageHandler(MessageHandler handler) {
         this.messageHandler = handler;
     }
-
+    
     /**
-     * Sets the handler for motion messages.
+     * Sets the handler for processing motion events received from clients.
+     * 
+     * @param handler the motion handler
      */
     public void setMotionHandler(MotionHandler handler) {
         this.motionHandler = handler;
     }
-
+    
     /**
-     * Sets the handler for emotion messages.
+     * Sets the handler for processing emotion events received from clients.
+     * 
+     * @param handler the emotion handler
      */
     public void setEmotionHandler(EmotionHandler handler) {
         this.emotionHandler = handler;
     }
 
     /**
-     * Starts the server and begins listening for connections.
+     * Constructs a new TicosClient with the specified port.
      * 
-     * @return true if server started successfully, false otherwise
+     * @param port The port to listen on for client connections
+     */
+    public TicosClient(int port) {
+        this.port = port;
+        this.memoryRounds = ConfigUtil.getMemoryRounds();
+    }
+    
+    /**
+     * Constructs a new TicosClient with the specified port and memory rounds.
+     * 
+     * @param port The port to listen on for client connections
+     * @param memoryRounds The number of messages after which to generate a memory
+     */
+    public TicosClient(int port, int memoryRounds) {
+        this.port = port;
+        this.memoryRounds = memoryRounds;
+    }
+
+    /**
+     * Starts the server and begins accepting client connections.
+     * 
+     * @return true if the server started successfully, false otherwise
      */
     public boolean start() {
         try {
-            serverSocket = new ServerSocket(port);
+            // Create and start the unified server for both HTTP and WebSocket
+            unifiedServer = new UnifiedServer(port, storageService, this);
+            unifiedServer.start();
             LOGGER.info("Server started on port " + port);
-            
-            // Start accept thread
-            acceptThread = new Thread(this::acceptLoop);
-            acceptThread.setDaemon(true);
-            acceptThread.start();
-            
             return true;
-        } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Failed to start server: " + e.getMessage());
-            cleanup();
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Failed to start server: " + e.getMessage(), e);
             return false;
         }
     }
@@ -191,232 +149,136 @@ public class TicosClient {
      * Stops the server and closes all client connections.
      */
     public void stop() {
-        running = false;
-        if (httpServer != null) {
-            httpServer.stop();
+        if (unifiedServer != null) {
+            unifiedServer.stop();
+            LOGGER.info("Server stopped");
         }
         cleanup();
-        LOGGER.info("Server stopped");
     }
 
     private void cleanup() {
         lock.lock();
         try {
-            if (serverSocket != null) {
-                try {
-                    serverSocket.close();
-                } catch (IOException e) {
-                    LOGGER.log(Level.WARNING, "Error closing server socket: " + e.getMessage());
-                }
-                serverSocket = null;
-            }
-            
-            // Close all client connections
-            for (ClientHandler client : clients) {
-                client.close();
-            }
+            // Clear all client references
             clients.clear();
         } finally {
             lock.unlock();
         }
     }
 
-    private void acceptLoop() {
-        while (running) {
-            try {
-                Socket clientSocket = serverSocket.accept();
-                LOGGER.info("New client connected from " + clientSocket.getInetAddress());
-                
-                ClientHandler clientHandler = new ClientHandler(clientSocket);
-                clients.add(clientHandler);
-                clientHandler.start();
-            } catch (IOException e) {
-                if (running) {
-                    LOGGER.log(Level.WARNING, "Error accepting client connection: " + e.getMessage());
+    /**
+     * Handle WebSocket messages from clients
+     * This method is called by the UnifiedServer when a WebSocket message is received
+     * 
+     * @param message The JSON message received from the client
+     * @param clientChannel The WebSocket channel that sent the message
+     */
+    public void handleWebSocketMessage(JSONObject message, Object clientChannel) {
+        try {
+            // Add client to the set if not already present
+            clients.add(clientChannel);
+            
+            // Process the message
+            String name = message.optString("name");
+            JSONObject arguments = message.optJSONObject("arguments");
+            
+            if (arguments != null) {
+                // Save the message if local storage is enabled
+                if (storageService != null) {
+                    JSONObject storageMessage = new JSONObject();
+                    storageMessage.put("id", UUID.randomUUID().toString());
+                    storageMessage.put("role", "user");
+                    storageMessage.put("content", arguments.optString("content"));
+                    storageMessage.put("datetime", dateFormat.format(new Date()));
+                    storageService.saveMessage(storageMessage);
+                    
+                    // Check if we need to generate a memory
+                    messageCounter++;
+                    if (messageCounter >= memoryRounds) {
+                        generateMemory();
+                        messageCounter = 0;
+                    }
                 }
-                break;
+                
+                // Handle different message types
+                if ("message".equals(name) && messageHandler != null) {
+                    messageHandler.handleMessage(arguments);
+                } else if ("motion".equals(name) && motionHandler != null) {
+                    motionHandler.handleMotion(arguments);
+                } else if ("emotion".equals(name) && emotionHandler != null) {
+                    emotionHandler.handleEmotion(arguments);
+                }
             }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error handling message: " + e.getMessage(), e);
         }
     }
 
     /**
      * Sends a message to all connected clients.
      * 
-     * @param message The message to broadcast, should contain 'name' and 'parameters' fields
-     * @return true if message was sent to at least one client successfully
+     * @param message The message to send
+     * @return true if the message was sent successfully
      */
     public boolean sendMessage(JSONObject message) {
-        if (clients.isEmpty()) {
-            LOGGER.warning("No clients connected");
-            return false;
+        // Send message to all connected clients
+        sendMessageToAll(message);
+        
+        // Save the message if local storage is enabled
+        if (storageService != null) {
+            JSONObject storageMessage = new JSONObject();
+            storageMessage.put("id", UUID.randomUUID().toString());
+            storageMessage.put("role", "assistant");
+            storageMessage.put("content", message.optJSONObject("arguments").optString("content"));
+            storageMessage.put("datetime", dateFormat.format(new Date()));
+            storageService.saveMessage(storageMessage);
         }
-
-        byte[] messageBytes = message.toString().getBytes(StandardCharsets.UTF_8);
-        byte[] lengthBytes = ByteBuffer.allocate(4).putInt(messageBytes.length).array();
-        byte[] fullMessage = new byte[4 + messageBytes.length];
-        System.arraycopy(lengthBytes, 0, fullMessage, 0, 4);
-        System.arraycopy(messageBytes, 0, fullMessage, 4, messageBytes.length);
-
-        boolean success = false;
-        for (ClientHandler client : clients) {
-            if (client.sendMessage(fullMessage)) {
-                success = true;
-            }
-        }
-        return success;
+        return true;
     }
 
     /**
-     * Handles communication with a single client.
+     * Send a message to all connected WebSocket clients
+     * 
+     * @param message The message to send
      */
-    private class ClientHandler {
-        private final Socket socket;
-        private final DataInputStream inputStream;
-        private final DataOutputStream outputStream;
-        private final Thread receiveThread;
-        private volatile boolean running = true;
-
-        public ClientHandler(Socket socket) throws IOException {
-            this.socket = socket;
-            this.inputStream = new DataInputStream(socket.getInputStream());
-            this.outputStream = new DataOutputStream(socket.getOutputStream());
-            this.receiveThread = new Thread(this::receiveLoop);
-            this.receiveThread.setDaemon(true);
+    private void sendMessageToAll(JSONObject message) {
+        if (unifiedServer != null) {
+            unifiedServer.sendMessageToAll(message);
         }
+    }
 
-        public void start() {
-            receiveThread.start();
+    /**
+     * Generates a memory from the conversation history
+     * This is called after a certain number of messages have been processed
+     */
+    private void generateMemory() {
+        if (storageService == null) {
+            return;
         }
-
-        public void close() {
-            running = false;
-            try {
-                socket.close();
-            } catch (IOException e) {
-                LOGGER.log(Level.WARNING, "Error closing client socket: " + e.getMessage());
+        
+        try {
+            // Get the latest messages
+            List<JSONObject> messages = storageService.getMessages(0, memoryRounds, true);
+            
+            // Get the latest memory for context
+            JSONObject latestMemory = storageService.getLatestMemory();
+            String lastMemoryContent = latestMemory != null ? latestMemory.optString("content", "") : "";
+            
+            // Use HttpUtil to call the summarization API
+            String memoryContent = HttpUtil.summarizeConversation(messages, lastMemoryContent);
+            
+            if (memoryContent != null && !memoryContent.isEmpty()) {
+                // Save the new memory
+                JSONObject memory = new JSONObject();
+                memory.put("type", "long");
+                memory.put("content", memoryContent);
+                memory.put("datetime", dateFormat.format(new Date()));
+                storageService.saveMemory(memory);
+                
+                LOGGER.info("Generated new memory: " + memoryContent);
             }
-        }
-
-        public boolean sendMessage(byte[] message) {
-            try {
-                synchronized (outputStream) {
-                    outputStream.write(message);
-                    outputStream.flush();
-                }
-                return true;
-            } catch (IOException e) {
-                LOGGER.warning("Failed to send message to client: " + e.getMessage());
-                cleanup();
-                return false;
-            }
-        }
-
-        private void cleanup() {
-            close();
-            clients.remove(this);
-        }
-
-        private void receiveLoop() {
-            while (running) {
-                try {
-                    // Read message length (4 bytes)
-                    byte[] lengthBytes = receiveExactly(4);
-                    if (lengthBytes == null) {
-                        break;
-                    }
-                    int messageLength = ByteBuffer.wrap(lengthBytes).getInt();
-
-                    // Read message content
-                    byte[] messageBytes = receiveExactly(messageLength);
-                    if (messageBytes == null) {
-                        break;
-                    }
-
-                    String messageStr = new String(messageBytes, StandardCharsets.UTF_8);
-                    JSONObject message = new JSONObject(messageStr);
-                    
-                    // Save message to storage if enabled
-                    if (storageService != null) {
-                        try {
-                            // Generate ID if not present
-                            if (!message.has("id")) {
-                                message.put("id", "msg_" + System.currentTimeMillis());
-                            }
-                            
-                            // Add timestamp if not present
-                            if (!message.has("datetime")) {
-                                message.put("datetime", dateFormat.format(new Date()));
-                            }
-                            
-                            // Save message
-                            storageService.saveMessage(message);
-                            
-                            // Check if we need to generate memories
-                            messageCounter++;
-                            if (messageCounter >= memoryRounds) {
-                                messageCounter = 0;
-                                new Thread(() -> generateMemories()).start();
-                            }
-                        } catch (Exception e) {
-                            LOGGER.log(Level.SEVERE, "Error saving message: " + e.getMessage(), e);
-                        }
-                    }
-                    
-                    if (messageHandler != null) {
-                        messageHandler.handleMessage(message);
-                    }
-
-                    String name = message.getString("name");
-                    JSONObject parameters = message.optJSONObject("arguments");
-                    if (parameters == null) {
-                        parameters = new JSONObject();
-                    }
-
-                    if ("motion".equals(name)) {
-                        if (motionHandler != null) {
-                            motionHandler.handleMotion(parameters);
-                        }
-                    } else if ("emotion".equals(name)) {
-                        if (emotionHandler != null) {
-                            emotionHandler.handleEmotion(parameters);
-                        }
-                    } else if ("motion_and_emotion".equals(name)) {
-                        if (emotionHandler != null) {
-                            emotionHandler.handleEmotion(parameters);
-                        }
-                        if (motionHandler != null) {
-                            motionHandler.handleMotion(parameters);
-                        }
-                    } else {
-                        LOGGER.info("Received message: " + messageStr);
-                    }
-                } catch (Exception e) {
-                    if (running) {
-                        LOGGER.warning("Error receiving message: " + e.getMessage());
-                    }
-                    break;
-                }
-            }
-
-            cleanup();
-            LOGGER.info("Client disconnected");
-        }
-
-        private byte[] receiveExactly(int n) {
-            byte[] data = new byte[n];
-            int totalRead = 0;
-            while (totalRead < n) {
-                try {
-                    int read = inputStream.read(data, totalRead, n - totalRead);
-                    if (read == -1) {
-                        return null;
-                    }
-                    totalRead += read;
-                } catch (IOException e) {
-                    return null;
-                }
-            }
-            return data;
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error generating memory: " + e.getMessage(), e);
         }
     }
 }

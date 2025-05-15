@@ -12,7 +12,8 @@ import java.util.logging.Logger;
  */
 public class SQLiteStorageService implements StorageService {
     private static final Logger LOGGER = Logger.getLogger(SQLiteStorageService.class.getName());
-    private static final String DB_URL = "jdbc:sqlite:ticos.db";
+    private static final String DEFAULT_DB_NAME = "ticos.db";
+    private final String dbUrl;
     private static final String CREATE_MESSAGES_TABLE = 
         "CREATE TABLE IF NOT EXISTS messages (" +
         "id TEXT PRIMARY KEY," +
@@ -31,13 +32,26 @@ public class SQLiteStorageService implements StorageService {
     
     private Connection connection;
     
+    /**
+     * Creates a new SQLiteStorageService with the default database name
+     */
     public SQLiteStorageService() {
+        this(DEFAULT_DB_NAME);
+    }
+    
+    /**
+     * Creates a new SQLiteStorageService with the specified database name
+     * 
+     * @param dbName the name of the database file
+     */
+    public SQLiteStorageService(String dbName) {
+        this.dbUrl = "jdbc:sqlite:" + dbName;
         initializeDatabase();
     }
     
     private void initializeDatabase() {
         try {
-            connection = DriverManager.getConnection(DB_URL);
+            connection = DriverManager.getConnection(dbUrl);
             try (Statement stmt = connection.createStatement()) {
                 stmt.execute(CREATE_MESSAGES_TABLE);
                 stmt.execute(CREATE_MEMORIES_TABLE);

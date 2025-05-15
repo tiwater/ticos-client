@@ -25,11 +25,15 @@ public class TicosClientTest {
         // Delete test database if it exists
         new File(TEST_DB).delete();
         
-        // Create a new storage service for testing
-        storageService = new SQLiteStorageService();
+        // Create a new storage service for testing with test database
+        storageService = new SQLiteStorageService(TEST_DB);
+        
+        // Use different ports for each test to avoid conflicts
+        // We'll use a random port between 10000 and 20000
+        int testPort = 10000 + (int)(Math.random() * 10000);
         
         // Create a client with test port
-        client = new TicosClient(9999);
+        client = new TicosClient(testPort);
         client.enableLocalStorage(storageService);
         client.start();
     }

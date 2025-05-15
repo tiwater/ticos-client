@@ -1,0 +1,164 @@
+package com.tiwater.ticos.server;
+
+import com.tiwater.ticos.TicosClient;
+import com.tiwater.ticos.storage.StorageService;
+import io.undertow.Undertow;
+import io.undertow.server.HttpHandler;
+import io.undertow.server.HttpServerExchange;
+import io.undertow.server.handlers.PathHandler;
+import io.undertow.util.Headers;
+import io.undertow.util.StatusCodes;
+import io.undertow.websockets.WebSocketConnectionCallback;
+import io.undertow.websockets.core.*;
+import io.undertow.websockets.spi.WebSocketHttpExchange;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.xnio.OptionMap;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import static io.undertow.Handlers.path;
+import static io.undertow.Handlers.websocket;
+
+/**
+ * Unified server that provides both HTTP and WebSocket services on the same port
+ */
+public class UnifiedServer {
+    private static final Logger LOGGER = Logger.getLogger(UnifiedServer.class.getName());
+    private final int port;
+    private final StorageService storageService;
+    private final TicosClient ticosClient;
+    private Undertow server;
+    private final Set<WebSocketChannel> webSocketConnections = new CopyOnWriteArraySet<>();
+    
+    public UnifiedServer(int port, StorageService storageService, TicosClient ticosClient) {
+        this.port = port;
+        this.storageService = storageService;
+        this.ticosClient = ticosClient;
+    }
+    
+    public void start() {
+        PathHandler pathHandler = path()
+            // WebSocket endpoint
+            .addPrefixPath("/ws", websocket(new WebSocketConnectionCallback() {
+                @Override
+                public void onConnect(WebSocketHttpExchange exchange, WebSocketChannel channel) {
+                    webSocketConnections.add(channel);
+                    LOGGER.info("WebSocket client connected: " + channel.getPeerAddress());
+                    
+                    // Set up message handler
+                    channel.getReceiveSetter().set(new AbstractReceiveListener() {
+                        @Override
+                        protected void onFullTextMessage(WebSocketChannel channel, BufferedTextMessage message) {
+                            String messageText = message.getData();
+                            try {
+                                JSONObject jsonMessage = new JSONObject(messageText);
+                                ticosClient.handleWebSocketMessage(jsonMessage, channel);
+                            } catch (Exception e) {
+                                LOGGER.log(Level.SEVERE, "Error processing WebSocket message: " + e.getMessage(), e);
+                            }
+                        }
+                        
+                        @Override
+                        protected void onError(WebSocketChannel channel, Throwable error) {
+                            LOGGER.log(Level.SEVERE, "WebSocket error: " + error.getMessage(), error);
+                        }
+                    });
+                    
+                    channel.resumeReceives();
+                }
+            }, OptionMap.EMPTY))
+            
+            // HTTP endpoints
+            .addExactPath("/memories/latest", new HttpHandler() {
+                @Override
+                public void handleRequest(HttpServerExchange exchange) throws Exception {
+                    if (exchange.isInIoThread()) {
+                        exchange.dispatch(this);
+                        return;
+                    }
+                    
+                    if (exchange.getRequestMethod().toString().equals("GET")) {
+                        // Parse query parameters
+                        String countParam = exchange.getQueryParameters().get("count") != null ? 
+                                           exchange.getQueryParameters().get("count").getFirst() : "5";
+                        int count = 5; // Default value
+                        
+                        try {
+                            count = Integer.parseInt(countParam);
+                            if (count < 1) count = 1;
+                            if (count > 100) count = 100; // Limit to 100 messages
+                        } catch (NumberFormatException e) {
+                            // Use default value if parsing fails
+                        }
+                        
+                        // Get latest messages
+                        List<JSONObject> messages = storageService.getMessages(0, count, false);
+                        
+                        // Convert to response format
+                        JSONArray response = new JSONArray();
+                        for (JSONObject msg : messages) {
+                            JSONObject item = new JSONObject();
+                            item.put("role", msg.optString("role"));
+                            item.put("content", msg.optString("content"));
+                            response.put(item);
+                        }
+                        
+                        sendJsonResponse(exchange, StatusCodes.OK, response.toString());
+                    } else {
+                        sendJsonResponse(exchange, StatusCodes.METHOD_NOT_ALLOWED, "{\"error\":\"Method not allowed\"}");
+                    }
+                }
+            });
+        
+        server = Undertow.builder()
+                .addHttpListener(port, "0.0.0.0")
+                .setHandler(pathHandler)
+                .build();
+        
+        server.start();
+        LOGGER.info("Unified server started on port " + port);
+    }
+    
+    public void stop() {
+        if (server != null) {
+            server.stop();
+            LOGGER.info("Unified server stopped");
+        }
+    }
+    
+    public void sendMessageToAll(JSONObject message) {
+        String messageText = message.toString();
+        for (WebSocketChannel channel : webSocketConnections) {
+            try {
+                WebSockets.sendText(messageText, channel, null);
+            } catch (Exception e) {
+                LOGGER.log(Level.SEVERE, "Failed to send message to client: " + e.getMessage(), e);
+            }
+        }
+    }
+    
+    public void sendMessageToClient(JSONObject message, WebSocketChannel client) {
+        try {
+            WebSockets.sendText(message.toString(), client, null);
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Failed to send message to client: " + e.getMessage(), e);
+        }
+    }
+    
+    private void sendJsonResponse(HttpServerExchange exchange, int statusCode, String jsonResponse) {
+        exchange.setStatusCode(statusCode);
+        exchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");
+        exchange.getResponseHeaders().put(Headers.ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+        exchange.getResponseHeaders().put(Headers.ACCESS_CONTROL_ALLOW_METHODS, "GET, OPTIONS");
+        exchange.getResponseHeaders().put(Headers.ACCESS_CONTROL_ALLOW_HEADERS, "Content-Type");
+        exchange.getResponseSender().send(jsonResponse);
+    }
+}

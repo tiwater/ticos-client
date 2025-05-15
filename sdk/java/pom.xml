@@ -58,7 +58,12 @@
             <artifactId>tomlj</artifactId>
             <version>1.1.0</version>
         </dependency>
-        <!-- Using Java's built-in HTTP server -->
+        <!-- Using Undertow for both HTTP and WebSocket -->
+        <dependency>
+            <groupId>io.undertow</groupId>
+            <artifactId>undertow-core</artifactId>
+            <version>2.3.10.Final</version>
+        </dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
@@ -121,6 +126,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-gpg-plugin</artifactId>
                 <version>3.1.0</version>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
                 <executions>
                     <execution>
                         <id>sign-artifacts</id>
