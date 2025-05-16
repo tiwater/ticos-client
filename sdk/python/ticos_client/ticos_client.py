@@ -10,6 +10,9 @@ from .server import UnifiedServer
 from .storage import StorageService, SQLiteStorageService
 from .models import Message, MessageRole, Memory, MemoryType
 from .util import ConfigUtil
+from .enums import SaveMode
+from .config import ConfigService
+from .utils import find_tf_root_directory
 
 logger = logging.getLogger(__name__)
 
@@ -20,36 +23,47 @@ class TicosClient:
     along with message and memory storage capabilities.
     """
     
-    def __init__(self, port: int = 9999):
+    def __init__(self, port: int = 9999, save_mode: SaveMode = SaveMode.INTERNAL, tf_root_dir: Optional[str] = None):
         """
         Initialize the TicosClient.
         
         Args:
             port: The port number to run the server on (default: 9999)
+            save_mode: The storage mode (internal or external) (default: internal)
+            tf_root_dir: The root directory of the TF card, or None if using internal storage (default: None)
         """
         self.port = port
-        self.storage: Optional[StorageService] = None
+        self.save_mode = save_mode
+        self.tf_root_dir = tf_root_dir
         self.server: Optional[UnifiedServer] = None
+        self.server_thread: Optional[threading.Thread] = None
+        self.running = False
+        self.storage: Optional[StorageService] = None
         self.message_handler: Optional[Callable[[Dict[str, Any]], None]] = None
         self.motion_handler: Optional[Callable[[Dict[str, Any]], None]] = None
         self.emotion_handler: Optional[Callable[[Dict[str, Any]], None]] = None
-        self.running = False
-        self.message_counter = 0
-        self.memory_rounds = ConfigUtil.get_memory_rounds()
+        
+        # Initialize config service
+        self.config_service = ConfigService(save_mode, tf_root_dir)
+        self.memory_rounds = self.config_service.get_memory_rounds()
         self.date_format = "%Y-%m-%d %H:%M:%S"
 
-    def enable_local_storage(self, storage: Optional[StorageService] = None):
+    def enable_local_storage(self, storage_service: SQLiteStorageService = None):
         """
         Enable local storage with the provided storage service.
         If no storage service is provided, a default SQLiteStorageService will be used.
         
         Args:
-            storage: Optional custom storage service implementation
+            storage_service: Optional custom storage service implementation
         """
-        if storage is None:
-            storage = SQLiteStorageService()
-        self.storage = storage
-        logger.info(f"Local storage enabled: {storage.__class__.__name__}")
+        if storage_service is None:
+            storage_service = SQLiteStorageService()
+        
+        if self.save_mode == SaveMode.EXTERNAL and self.tf_root_dir:
+            storage_service.set_store_root_dir(self.tf_root_dir)
+        storage_service.initialize()
+        self.storage = storage_service
+        logger.info(f"Local storage enabled: {storage_service.__class__.__name__}")
 
     def set_message_handler(self, handler: Callable[[Dict[str, Any]], None]):
         """

@@ -113,9 +113,8 @@ public class TicosClient {
         }
         
         // Initialize ConfigService
-        this.configService = new ConfigService(saveMode, tfRootDir);
         try {
-            configService.initialize();
+            this.configService = new ConfigService(saveMode, tfRootDir);
         } catch (IOException e) {
             throw new RuntimeException("Failed to initialize config service", e);
         }

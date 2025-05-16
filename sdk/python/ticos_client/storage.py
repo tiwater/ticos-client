@@ -5,48 +5,68 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 import logging
+from abc import ABC, abstractmethod
 from .models import Message, Memory, MessageRole, MemoryType
 
 logger = logging.getLogger(__name__)
 
-class StorageService:
-    """Base interface for storage operations"""
+class StorageService(ABC):
+    """Interface defining storage operations for messages and memories."""
+    
+    @abstractmethod
+    def set_store_root_dir(self, tf_root_dir: str) -> None:
+        """
+        Set the root directory for storage.
+        
+        Args:
+            tf_root_dir: The root directory of the TF card
+        """
+        pass
+    
+    @abstractmethod
+    def initialize(self) -> None:
+        """Initialize the storage service."""
+        pass
+    
+    @abstractmethod
     def save_message(self, message: Message) -> bool:
-        """Save a message to storage"""
-        raise NotImplementedError
+        """Save a message to storage."""
+        pass
     
-    def get_message(self, message_id: str) -> Optional[Dict[str, Any]]:
-        """Get a message by ID"""
-        raise NotImplementedError
-        
+    @abstractmethod
+    def get_message(self, message_id: str) -> Optional[Message]:
+        """Get a message from storage."""
+        pass
+    
+    @abstractmethod
     def update_message(self, message_id: str, message: Message) -> bool:
-        """Update an existing message"""
-        raise NotImplementedError
-        
+        """Update a message in storage."""
+        pass
+    
+    @abstractmethod
     def delete_message(self, message_id: str) -> bool:
-        """Delete a message by ID"""
-        raise NotImplementedError
+        """Delete a message from storage."""
+        pass
     
-    def get_messages(self, offset: int = 0, limit: int = 10, desc: bool = True) -> List[Dict[str, Any]]:
-        """Get messages with pagination"""
-        raise NotImplementedError
+    @abstractmethod
+    def get_messages(self, offset: int = 0, limit: int = 100) -> list[Message]:
+        """Get a list of messages from storage."""
+        pass
     
+    @abstractmethod
     def save_memory(self, memory: Memory) -> bool:
-        """Save a memory to storage"""
-        raise NotImplementedError
-        
-    def get_memory(self, memory_id: int) -> Optional[Dict[str, Any]]:
-        """Get a memory by ID"""
-        raise NotImplementedError
-        
-    def update_memory(self, memory_id: int, memory: Memory) -> bool:
-        """Update an existing memory"""
-        raise NotImplementedError
-        
-    def delete_memory(self, memory_id: int) -> bool:
-        """Delete a memory by ID"""
-        raise NotImplementedError
+        """Save a memory to storage."""
+        pass
     
+    @abstractmethod
+    def get_memory(self, memory_id: str) -> Optional[Memory]:
+        """Get a memory from storage."""
+        pass
+    
+    @abstractmethod
+    def delete_memory(self, memory_id: str) -> bool:
+        """Delete a memory from storage."""
+        pass
     def get_latest_memory(self) -> Optional[Dict[str, Any]]:
         """Get the most recent memory"""
         raise NotImplementedError
