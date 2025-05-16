@@ -61,6 +61,7 @@ public class TicosClient {
             // Configure storage service to use TF card directory
             storageService.setTfRootDir(this.tfRootDir);
             storageService.initialize();
+        }
     }
 
     /**
@@ -130,7 +131,6 @@ public class TicosClient {
      */
     public TicosClient(int port, SaveMode saveMode) {
         this(port, saveMode, null);
-    }
     }
 
     private String findTfRootDirectory() {
