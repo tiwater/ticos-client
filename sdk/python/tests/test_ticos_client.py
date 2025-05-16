@@ -68,7 +68,6 @@ class TestTicosClient(unittest.TestCase):
         
         try:
             # Send the message
-            self.client.handle_message(test_msg)
             result = self.client.send_message(test_msg)
             self.assertTrue(result, "Failed to send message")
             

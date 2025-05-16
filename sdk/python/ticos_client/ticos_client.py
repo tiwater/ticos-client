@@ -87,7 +87,7 @@ class TicosClient(MessageCallbackInterface):
         """
         if not callable(handler):
             raise ValueError("Handler must be callable")
-        self.server.message_handler = handler
+        self.message_handler = handler
         logger.debug("Message handler set")
 
     def set_motion_handler(self, handler: Callable[[Dict[str, Any]], None]):

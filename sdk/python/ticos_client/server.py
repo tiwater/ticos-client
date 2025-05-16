@@ -41,6 +41,10 @@ class UnifiedServer:
         self._server = None
         self._should_exit = False
         self.message_callback = message_callback
+        
+        # Ensure message_callback is properly initialized
+        if not isinstance(message_callback, MessageCallbackInterface):
+            raise ValueError("message_callback must implement MessageCallbackInterface")
     
     def _setup_middleware(self):
         """Set up CORS middleware"""
