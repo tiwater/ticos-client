@@ -13,6 +13,7 @@ from .models import Message, MessageRole, Memory, MemoryType
 from .enums import SaveMode
 from .config import ConfigService
 from .utils import find_tf_root_directory
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -115,10 +116,13 @@ class TicosClient(MessageCallbackInterface):
     def start(self):
         """
         Start the Ticos server.
+        
+        Returns:
+            bool: True if server started successfully, False otherwise
         """
         if self.running:
             logger.warning("Ticos server is already running")
-            return
+            return False
         
         # Start the server in a separate thread
         def run_server():
@@ -129,16 +133,36 @@ class TicosClient(MessageCallbackInterface):
                     storage_service=self.storage,
                 )
                 import uvicorn
-                uvicorn.run(self.server.app, host="0.0.0.0", port=self.port, log_level="info")
+                config = uvicorn.Config(
+                    self.server.app, 
+                    host="0.0.0.0", 
+                    port=self.port, 
+                    log_level="info"
+                )
+                self._server = uvicorn.Server(config)
+                self.running = True
+                self._server.run()
             except Exception as e:
                 logger.error(f"Failed to start server: {e}")
                 self.running = False
-                return False
         
         self.server_thread = threading.Thread(target=run_server, daemon=True)
         self.server_thread.start()
-        self.running = True
-        logger.info(f"Ticos server started on port {self.port}")
+        
+        # Check server status by making a test request
+        try:
+            for _ in range(10):  # Retry for up to 1 second
+                try:
+                    response = requests.get(f"http://localhost:{self.port}/health")
+                    if response.status_code == 200:
+                        logger.info(f"Ticos server started on port {self.port}")
+                        return True
+                except requests.exceptions.ConnectionError:
+                    time.sleep(0.1)
+            return False
+        except Exception as e:
+            logger.error(f"Error checking server status: {e}")
+            return False
 
     def stop(self):
         """Stop the server and clean up resources."""
@@ -235,8 +259,12 @@ class TicosClient(MessageCallbackInterface):
             message: The message to handle
             
         Returns:
-            bool: True if the message was handled successfully
+            bool: True if the message was handled by any handler
         """
+        if not isinstance(message, dict):
+            logger.warning(f"Invalid message format: {message}")
+            return False
+            
         try:
             # Save the message to local storage if enabled
             if self.storage:
@@ -247,10 +275,6 @@ class TicosClient(MessageCallbackInterface):
                     # Convert message to Message model
                     role = MessageRole.USER if message.get('name') == 'test_message' else MessageRole.ASSISTANT
                     
-                    # Check if this is a response to a previous message
-                    if 'in_response_to' in message.get('arguments', {}):
-                        role = MessageRole.ASSISTANT
-                    
                     # Ensure storage message has an ID
                     if 'id' not in storage_message:
                         storage_message['id'] = str(uuid.uuid4())
@@ -259,66 +283,40 @@ class TicosClient(MessageCallbackInterface):
                     msg = Message(
                         id=storage_message['id'],
                         role=role,
-                        content=json.dumps(message),  # Store the original message
+                        content=json.dumps(message),
                         datetime=datetime.now().strftime(self.date_format)
                     )
                     self.storage.save_message(msg)
-                    logger.debug("Message saved to storage")
                     
                     # Check if we need to generate a memory
                     self.message_counter += 1
                     if self.message_counter >= self.memory_rounds:
                         self.generate_memory()
                         self.message_counter = 0
-                        
                 except Exception as e:
                     logger.error(f"Failed to save message to storage: {e}")
-                    return False
-                    
-            # Call the generic message handler first
-            if self.message_handler:
-                self.message_handler(message)
-                logger.debug("Called generic message handler")
             
             # Call the appropriate handler based on message type
-            message_name = message.get('name')
-            arguments = message.get('arguments', {})
+            msg_name = message.get('name')
+            args = message.get('arguments', {})
             
-            try:
-                # Log the received message for debugging
-                logger.debug(f"Handling message: {message_name} with args: {arguments}")
-                
-                # Call the appropriate handler
-                if message_name == "motion":
-                    if self.motion_handler:
-                        self.motion_handler(arguments)
-                        logger.debug("Called motion handler")
-                    else:
-                        logger.warning("No motion handler registered")
-                elif message_name == "emotion":
-                    if self.emotion_handler:
-                        self.emotion_handler(arguments)
-                        logger.debug("Called emotion handler")
-                    else:
-                        logger.warning("No emotion handler registered")
-                elif message_name == "motion_and_emotion":
-                    if self.motion_handler:
-                        self.motion_handler(arguments)
-                        logger.debug("Called motion handler (from motion_and_emotion)")
-                    if self.emotion_handler:
-                        self.emotion_handler(arguments)
-                        logger.debug("Called emotion handler (from motion_and_emotion)")
-                else:
-                    logger.info(f"Received unhandled message: {message}")
-                    
+            if msg_name == "motion" and hasattr(self, 'motion_handler') and self.motion_handler:
+                self.motion_handler(args)
                 return True
                 
-            except Exception as e:
-                logger.error(f"Error handling message {message_name}: {e}", exc_info=True)
-                return False
+            if msg_name == "emotion" and hasattr(self, 'emotion_handler') and self.emotion_handler:
+                self.emotion_handler(args)
+                return True
                 
+            if hasattr(self, 'message_handler') and self.message_handler:
+                self.message_handler(message)
+                return True
+                
+            logger.warning(f"No handler for message: {msg_name}")
+            return False
+            
         except Exception as e:
-            logger.error(f"Error handling message: {e}", exc_info=True)
+            logger.error(f"Error handling message: {e}")
             return False
 
     def generate_memory(self) -> None:

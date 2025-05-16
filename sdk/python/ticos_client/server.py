@@ -15,9 +15,9 @@ from fastapi.requests import Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from .models import Message, Memory, MessageRequest, MessageResponse, MessagesResponse
+from .models import Message, Memory, MessageRequest, MessageResponse, MessagesResponse, MessageRole
 from .storage import StorageService
-from .ticos_client_interface import MessageCallbackInterface, MessageRole
+from .ticos_client_interface import MessageCallbackInterface
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +40,7 @@ class UnifiedServer:
         self.websocket_lock = threading.Lock()
         self._server = None
         self._should_exit = False
+        self.message_callback = message_callback
     
     def _setup_middleware(self):
         """Set up CORS middleware"""
@@ -150,20 +151,31 @@ class UnifiedServer:
     
     async def _handle_message(self, message: Dict[str, Any]) -> bool:
         """
-        Handle incoming message.
+        Handle incoming WebSocket messages.
         
         Args:
-            message: The incoming message
+            message: The JSON message received from client
             
         Returns:
-            bool: True if the message was handled by any handler, False otherwise
+            bool: True if message was handled successfully
         """
-        if not isinstance(message, dict):
-            logger.error(f"Invalid message format: {message}")
+        try:
+            if not isinstance(message, dict):
+                logger.warning(f"Invalid message type: {type(message)}")
+                return False
+                
+            # Call the registered message callback
+            if self.message_callback:
+                handled = self.message_callback.handle_message(message)
+                if not handled:
+                    logger.warning(f"Message not handled: {message.get('name')}")
+                return handled
+                
+            logger.warning("No message callback registered")
             return False
-        if hasattr(self, 'ticos_client') and self.ticos_client:
-            return self.ticos_client.handle_message(message)
-        return False
+        except Exception as e:
+            logger.error(f"Error handling message: {e}")
+            return False
             
     
     async def broadcast_message(self, message: Dict[str, Any]) -> bool:
