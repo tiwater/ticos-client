@@ -166,7 +166,7 @@ public class TicosClient {
                             // Typically TF cards have UUID-like names or are mounted with labels
                             String mountName = mountPoint.substring(mountPoint.lastIndexOf("/") + 1);
                             if (mountName.matches("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}") ||
-                                mountName.matches("[a-zA-Z0-9_\-]+")) { // Also accept simple names
+                                mountName.matches("[a-zA-Z0-9_\\-]+")) { // Also accept simple names
                                 return mountDir.getAbsolutePath();
                             }
                         }

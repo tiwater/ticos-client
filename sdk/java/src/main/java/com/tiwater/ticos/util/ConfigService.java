@@ -52,7 +52,7 @@ public class ConfigService {
             Path userConfigFile = userConfigDirPath.resolve(CONFIG_FILE);
             if (!Files.exists(userConfigFile)) {
                 String defaultConfig = "# Ticos Client Configuration\n" +
-                        "agent_id = \"\"\n\n"
+                        "agent_id = \"\"\n\n" +
                         "[conversation]\n" +
                         "context_rounds = 6\n" +
                         "memory_rounds = 18\n\n";
