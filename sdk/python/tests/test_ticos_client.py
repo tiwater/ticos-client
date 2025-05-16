@@ -17,18 +17,19 @@ class TestTicosClient(unittest.TestCase):
     def setUp(self):
         # Create a temporary directory for the test database
         self.temp_dir = tempfile.TemporaryDirectory()
-        self.db_path = os.path.join(self.temp_dir.name, "test.db")
         
         # Get a unique port for this test
         self.port = self._port_counter
         TestTicosClient._port_counter += 1
         
         # Initialize the client with test settings
-        self.client = TicosClient(port=self.port)
+        self.client = TicosClient(port=self.port, save_mode="internal")
         
         # Enable local storage with the test database
         from ticos_client.storage import SQLiteStorageService
-        self.storage = SQLiteStorageService(db_name=self.db_path)
+        self.storage = SQLiteStorageService()
+        self.storage.set_store_root_dir(self.temp_dir.name)  # Use the temporary directory
+        self.storage.initialize()
         self.client.enable_local_storage(self.storage)
         
         # Start the server
@@ -67,6 +68,7 @@ class TestTicosClient(unittest.TestCase):
         
         try:
             # Send the message
+            self.client.handle_message(test_msg)
             result = self.client.send_message(test_msg)
             self.assertTrue(result, "Failed to send message")
             
@@ -81,18 +83,18 @@ class TestTicosClient(unittest.TestCase):
                            "Hello, Ticos!", "Incorrect message text")
             
             # Check if the message was saved to storage
-            messages = self.client.get_messages()
+            messages = self.client.storage.get_messages()
             self.assertGreater(len(messages), 0, "No messages found in storage")
             
             # Find our test message in the stored messages
             test_message_found = False
             for msg in messages:
-                content = json.loads(msg["content"]) if isinstance(msg["content"], str) else msg["content"]
-                if content.get("name") == "test_message":
+                content = json.loads(msg.content) if isinstance(msg.content, str) else msg.content
+                if isinstance(content, dict) and content.get("name") == "test_message":
                     test_message_found = True
-                    self.assertEqual(content.get("arguments", {}).get("text"), 
+                    self.assertEqual(content.get("arguments", {}).get("text"),
                                   "Hello, Ticos!", "Incorrect message text in storage")
-                    self.assertEqual(msg["role"], MessageRole.USER.value, "Incorrect message role in storage")
+                    self.assertEqual(msg.role, MessageRole.USER, "Incorrect message role in storage")
                     break
                     
             self.assertTrue(test_message_found, "Test message not found in storage")
@@ -110,6 +112,7 @@ class TestTicosClient(unittest.TestCase):
                 "text": "Tell me a joke"
             }
         }
+        self.client.handle_message(test_msg)
         self.assertTrue(self.client.send_message(test_msg))
         
         # Verify we can get the latest messages via the API

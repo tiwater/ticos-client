@@ -182,5 +182,9 @@ For example, the following JSON object is a valid motion message:
    ```bash
    pip install -r requirements-dev.txt
    ```
-
+3. Test:
+   ```bash
+   python -m pytest tests/test_ticos_client.py -v
+   ```
+   
 For more examples, check out the [examples/python](../../examples/python) directory.

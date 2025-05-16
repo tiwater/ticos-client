@@ -83,13 +83,13 @@ class UnifiedServer:
                 result = []
                 for msg in reversed(messages):  # Reverse to get oldest first
                     try:
-                        content = json.loads(msg["content"]) if isinstance(msg["content"], str) else msg["content"]
+                        content = json.loads(msg.content) if isinstance(msg.content, str) else msg.content
                         result.append({
-                            "role": msg["role"],
+                            "role": msg.role.value,
                             "content": content  # Return the full content
                         })
                     except Exception as e:
-                        logger.warning(f"Error processing message {msg.get('id')}: {e}")
+                        logger.warning(f"Error processing message {msg.id}: {e}")
                         continue
                 
                 return result
@@ -165,50 +165,13 @@ class UnifiedServer:
             logger.error(f"Invalid message format: {message}")
             return False
             
-        message_name = message.get("name")
-        arguments = message.get("arguments", {})
-        handled = False
-        
-        try:
-            # Log the received message for debugging
-            logger.debug(f"Handling message: {message_name} with args: {arguments}")
+        # Call the client's message handler
+        if self.message_handler:
+            self.message_handler(message)
+            return True
             
-            # Call the appropriate handler
-            if message_name == "motion":
-                if self.motion_handler:
-                    self.motion_handler(arguments)
-                    handled = True
-                    logger.debug("Called motion handler")
-                else:
-                    logger.warning("No motion handler registered")
-            elif message_name == "emotion":
-                if self.emotion_handler:
-                    self.emotion_handler(arguments)
-                    handled = True
-                    logger.debug("Called emotion handler")
-                else:
-                    logger.warning("No emotion handler registered")
-            elif message_name == "motion_and_emotion":
-                if self.motion_handler:
-                    self.motion_handler(arguments)
-                    handled = True
-                    logger.debug("Called motion handler (from motion_and_emotion)")
-                if self.emotion_handler:
-                    self.emotion_handler(arguments)
-                    handled = handled or bool(self.emotion_handler)
-                    logger.debug("Called emotion handler (from motion_and_emotion)")
-            elif self.message_handler:
-                self.message_handler(message)
-                handled = True
-                logger.debug("Called generic message handler")
-            else:
-                logger.info(f"Received unhandled message: {message}")
-                
-            return handled
+        return False
             
-        except Exception as e:
-            logger.error(f"Error handling message {message_name}: {e}", exc_info=True)
-            return False
     
     async def broadcast_message(self, message: Dict[str, Any]) -> bool:
         """

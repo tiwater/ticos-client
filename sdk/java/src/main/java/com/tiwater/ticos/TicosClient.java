@@ -257,13 +257,23 @@ public class TicosClient {
                     }
                 }
                 
+                // Call the generic message handler first
+                if (messageHandler != null) {
+                    messageHandler.handleMessage(message);
+                }
+                
                 // Handle different message types
-                if ("message".equals(name) && messageHandler != null) {
-                    messageHandler.handleMessage(arguments);
-                } else if ("motion".equals(name) && motionHandler != null) {
+                if ("motion".equals(name) && motionHandler != null) {
                     motionHandler.handleMotion(arguments);
                 } else if ("emotion".equals(name) && emotionHandler != null) {
                     emotionHandler.handleEmotion(arguments);
+                } else if ("motion_and_emotion".equals(name)) {
+                    if (emotionHandler != null) {
+                        emotionHandler.handleEmotion(arguments);
+                    }
+                    if (motionHandler != null) {
+                        motionHandler.handleMotion(arguments);
+                    }
                 }
             }
         } catch (Exception e) {

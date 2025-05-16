@@ -78,43 +78,70 @@ class StorageService(ABC):
 class SQLiteStorageService(StorageService):
     """SQLite implementation of StorageService"""
     
-    def __init__(self, db_name: str = "ticos.db"):
-        self.db_name = db_name
-        self.db_path = self._get_db_path()
-        self._init_db()
+    def __init__(self):
+        """
+        Initialize SQLiteStorageService.
+        """
+        self.db_path = None
+        self.store_root_dir = None
     
     def _get_db_path(self) -> str:
         """Get the database path, creating the config directory if needed"""
         config_dir = os.path.join(Path.home(), ".config", "ticos")
         os.makedirs(config_dir, exist_ok=True)
-        return os.path.join(config_dir, self.db_name)
+        return os.path.join(config_dir, "ticos.db")
     
-    def _init_db(self):
-        """Initialize the database with required tables"""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
+    def set_store_root_dir(self, tf_root_dir: str) -> None:
+        """
+        Set the root directory for storage.
+        
+        Args:
+            tf_root_dir: The root directory of the TF card
+        """
+        self.store_root_dir = tf_root_dir
+        
+    def initialize(self) -> None:
+        """Initialize the storage service."""
+        try:
+            # Create config directory if it doesn't exist
+            if self.store_root_dir:
+                config_dir = Path(self.store_root_dir) / ".config" / "ticos"
+            else:
+                config_dir = Path.home() / ".config" / "ticos"
             
-            # Create messages table
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS messages (
-                    id TEXT PRIMARY KEY,
-                    role TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    datetime TEXT NOT NULL
-                )
-            ''')
+            config_dir.mkdir(parents=True, exist_ok=True)
             
-            # Create memories table
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS memories (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    type TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    datetime TEXT NOT NULL
-                )
-            ''')
+            # Set database path
+            self.db_path = str(config_dir / "ticos.db")
             
-            conn.commit()
+            # Initialize database tables
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                # Create messages table
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS messages (
+                        id TEXT PRIMARY KEY,
+                        role TEXT NOT NULL,
+                        content TEXT NOT NULL,
+                        datetime TEXT NOT NULL
+                    )
+                ''')
+                
+                # Create memories table
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS memories (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        type TEXT NOT NULL,
+                        content TEXT NOT NULL,
+                        datetime TEXT NOT NULL
+                    )
+                ''')
+                
+                conn.commit()
+        except Exception as e:
+            logger.error(f"Failed to initialize storage: {e}")
+            raise
     
     def _get_connection(self):
         """Get a new database connection"""
@@ -202,8 +229,8 @@ class SQLiteStorageService(StorageService):
         except Exception as e:
             logger.error(f"Failed to delete message: {e}")
             return False
-    
-    def get_messages(self, offset: int = 0, limit: int = 10, desc: bool = True) -> List[Dict[str, Any]]:
+
+    def get_messages(self, offset: int = 0, limit: int = 10, desc: bool = True) -> List[Message]:
         """Get messages with pagination"""
         try:
             with self._get_connection() as conn:
@@ -213,19 +240,20 @@ class SQLiteStorageService(StorageService):
                     f'SELECT id, role, content, datetime FROM messages ORDER BY datetime {order} LIMIT ? OFFSET ?',
                     (limit, offset)
                 )
+                rows = cursor.fetchall()
                 return [
-                    {
-                        'id': row[0],
-                        'role': row[1],
-                        'content': row[2],
-                        'datetime': row[3]
-                    }
-                    for row in cursor.fetchall()
+                    Message(
+                        id=row[0],
+                        role=MessageRole(row[1]),
+                        content=row[2],
+                        datetime=row[3]
+                    )
+                    for row in rows
                 ]
         except Exception as e:
             logger.error(f"Failed to get messages: {e}")
             return []
-    
+
     def save_memory(self, memory: Memory) -> bool:
         """Save a memory to storage"""
         try:

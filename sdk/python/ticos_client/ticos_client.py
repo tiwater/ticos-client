@@ -5,11 +5,11 @@ import threading
 import time
 import uuid
 from datetime import datetime
+import os
 from typing import Callable, Dict, Any, Optional, List, Union
 from .server import UnifiedServer
 from .storage import StorageService, SQLiteStorageService
 from .models import Message, MessageRole, Memory, MemoryType
-from .util import ConfigUtil
 from .enums import SaveMode
 from .config import ConfigService
 from .utils import find_tf_root_directory
@@ -42,13 +42,14 @@ class TicosClient:
         self.message_handler: Optional[Callable[[Dict[str, Any]], None]] = None
         self.motion_handler: Optional[Callable[[Dict[str, Any]], None]] = None
         self.emotion_handler: Optional[Callable[[Dict[str, Any]], None]] = None
+        self.message_counter = 0  # Add message counter
         
         # Initialize config service
         self.config_service = ConfigService(save_mode, tf_root_dir)
         self.memory_rounds = self.config_service.get_memory_rounds()
         self.date_format = "%Y-%m-%d %H:%M:%S"
 
-    def enable_local_storage(self, storage_service: SQLiteStorageService = None):
+    def enable_local_storage(self, storage_service: Optional[StorageService] = None):
         """
         Enable local storage with the provided storage service.
         If no storage service is provided, a default SQLiteStorageService will be used.
@@ -59,11 +60,20 @@ class TicosClient:
         if storage_service is None:
             storage_service = SQLiteStorageService()
         
+        # Set storage directory based on save mode
         if self.save_mode == SaveMode.EXTERNAL and self.tf_root_dir:
             storage_service.set_store_root_dir(self.tf_root_dir)
-        storage_service.initialize()
-        self.storage = storage_service
-        logger.info(f"Local storage enabled: {storage_service.__class__.__name__}")
+        else:
+            # For internal storage, use a default directory
+            storage_service.set_store_root_dir(os.path.join(os.getcwd(), 'storage'))
+        
+        try:
+            storage_service.initialize()
+            self.storage = storage_service
+            logger.info(f"Local storage enabled: {storage_service.__class__.__name__}")
+        except Exception as e:
+            logger.error(f"Failed to initialize storage: {e}")
+            raise
 
     def set_message_handler(self, handler: Callable[[Dict[str, Any]], None]):
         """
@@ -86,7 +96,7 @@ class TicosClient:
         """
         if not callable(handler):
             raise ValueError("Handler must be callable")
-        self.server.motion_handler = handler
+        self.motion_handler = handler
     
     def set_emotion_handler(self, handler: Callable[[Dict[str, Any]], None]):
         """
@@ -97,47 +107,38 @@ class TicosClient:
         """
         if not callable(handler):
             raise ValueError("Handler must be callable")
-        self.server.emotion_handler = handler
+        self.emotion_handler = handler
         logger.debug("Emotion handler set")
 
     def start(self) -> bool:
         """
         Start the Ticos server.
-        
-        Returns:
-            bool: True if server started successfully, False otherwise
         """
-        if self.running:
-            logger.warning("Server is already running")
-            return True
-            
         try:
-            self.server = UnifiedServer(
-                port=self.port,
-                storage_service=self.storage,
-                message_handler=self.message_handler,
-                motion_handler=self.motion_handler,
-                emotion_handler=self.emotion_handler
-            )
-            
-            # Start the server in a separate thread
-            self.server_thread = threading.Thread(
-                target=self.server.run,
-                daemon=True
-            )
-            self.server_thread.start()
-            
-            # Give the server some time to start
-            time.sleep(0.5)  # Increased from 0.1 to 0.5 seconds
-            
-            # Check if the server is actually running
-            if not hasattr(self.server, 'is_running') or not self.server.is_running():
-                logger.error("Server failed to start")
-                self.running = False
+            if self.running:
+                logger.warning("Server is already running")
                 return False
                 
+            # Initialize the server if not already done
+            if self.server is None:
+                self.server = UnifiedServer(
+                    port=self.port,
+                    storage_service=self.storage,
+                    message_handler=self.handle_message,
+                    motion_handler=self.motion_handler,
+                    emotion_handler=self.emotion_handler
+                )
+                
+            # Start the server in a separate thread
+            self.server_thread = threading.Thread(target=self.server.run)
+            self.server_thread.daemon = True
+            self.server_thread.start()
+            
+            # Wait a moment for the server to start
+            time.sleep(0.1)
+            
             self.running = True
-            logger.info(f"Ticos server started on port {self.port}")
+            logger.info(f"Server started on port {self.port}")
             return True
             
         except Exception as e:
@@ -183,16 +184,15 @@ class TicosClient:
     
     def send_message(self, message: Dict[str, Any]) -> bool:
         """
-        Send a message to the server.
+        Send a message to all connected WebSocket clients.
         
         Args:
-            message: The message to send
+            message: Dictionary containing the message data
             
         Returns:
-            bool: True if the message was sent successfully, False otherwise
+            bool: True if the message was sent successfully
         """
         try:
-            # Validate message format
             if not isinstance(message, dict):
                 logger.error("Message must be a dictionary")
                 return False
@@ -201,49 +201,12 @@ class TicosClient:
                 logger.error("Message must contain a 'name' field")
                 return False
                 
-            # Add message ID and timestamp if not present
-            message = message.copy()  # Don't modify the original message
-            if "id" not in message:
-                message["id"] = str(uuid.uuid4())
-                
-            if "arguments" not in message:
-                message["arguments"] = {}
-                
             if "timestamp" not in message["arguments"]:
                 message["arguments"]["timestamp"] = datetime.utcnow().isoformat()
             
             logger.debug(f"Sending message: {message}")
             
-            # Save the message to local storage if enabled
-            if self.storage:
-                try:
-                    # Convert message to Message model
-                    # Determine role based on message type
-                    role = MessageRole.USER if message.get('name') == 'test_message' else MessageRole.ASSISTANT
-                    
-                    # Check if this is a response to a previous message
-                    if 'in_response_to' in message.get('arguments', {}):
-                        role = MessageRole.ASSISTANT
-                    
-                    msg = Message(
-                        id=message['id'],
-                        role=role,
-                        content=json.dumps(message),
-                        datetime=datetime.now().strftime(self.date_format)
-                    )
-                    self.storage.save_message(msg)
-                    logger.debug("Message saved to storage")
-                    
-                    # Check if we need to generate a memory
-                    self.message_counter += 1
-                    if self.message_counter >= self.memory_rounds:
-                        self.generate_memory()
-                        self.message_counter = 0
-                        
-                except Exception as e:
-                    logger.error(f"Failed to save message to storage: {e}")
-                    return False
-            # 尝试广播消息，但无论成功与否都返回True
+            # Broadcast the message
             if self.server and hasattr(self.server, 'broadcast_message'):
                 try:
                     if hasattr(self.server, 'loop') and self.server.loop.is_running():
@@ -258,6 +221,7 @@ class TicosClient:
                     logger.warning(f"Error broadcasting message: {e}")
             else:
                 logger.debug("Server not available for broadcasting")
+            
             return True
         except Exception as e:
             logger.error(f"Error sending message: {e}", exc_info=True)
@@ -267,23 +231,102 @@ class TicosClient:
         """Check if the server is running"""
         return self.running and bool(self.server)
 
-    def get_messages(self, offset: int = 0, limit: int = 10, desc: bool = True) -> List[Dict[str, Any]]:
+
+    
+    def handle_message(self, message: Dict[str, Any]) -> bool:
         """
-        Get stored messages.
+        Handle an incoming message.
         
         Args:
-            offset: Number of messages to skip
-            limit: Maximum number of messages to return
-            desc: Whether to sort in descending order (newest first)
+            message: The message to handle
             
         Returns:
-            List of message dictionaries
+            bool: True if the message was handled successfully
         """
-        if not self.storage:
-            logger.warning("Local storage is not enabled")
-            return []
-        return self.storage.get_messages(offset, limit, desc)
-    
+        try:
+            # Save the message to local storage if enabled
+            if self.storage:
+                try:
+                    # Create a copy of the message for storage
+                    storage_message = message.copy()
+                    
+                    # Convert message to Message model
+                    role = MessageRole.USER if message.get('name') == 'test_message' else MessageRole.ASSISTANT
+                    
+                    # Check if this is a response to a previous message
+                    if 'in_response_to' in message.get('arguments', {}):
+                        role = MessageRole.ASSISTANT
+                    
+                    # Ensure storage message has an ID
+                    if 'id' not in storage_message:
+                        storage_message['id'] = str(uuid.uuid4())
+                    
+                    # Store the original message content
+                    msg = Message(
+                        id=storage_message['id'],
+                        role=role,
+                        content=json.dumps(message),  # Store the original message
+                        datetime=datetime.now().strftime(self.date_format)
+                    )
+                    self.storage.save_message(msg)
+                    logger.debug("Message saved to storage")
+                    
+                    # Check if we need to generate a memory
+                    self.message_counter += 1
+                    if self.message_counter >= self.memory_rounds:
+                        self.generate_memory()
+                        self.message_counter = 0
+                        
+                except Exception as e:
+                    logger.error(f"Failed to save message to storage: {e}")
+                    return False
+                    
+            # Call the generic message handler first
+            if self.message_handler:
+                self.message_handler(message)
+                logger.debug("Called generic message handler")
+            
+            # Call the appropriate handler based on message type
+            message_name = message.get('name')
+            arguments = message.get('arguments', {})
+            
+            try:
+                # Log the received message for debugging
+                logger.debug(f"Handling message: {message_name} with args: {arguments}")
+                
+                # Call the appropriate handler
+                if message_name == "motion":
+                    if self.motion_handler:
+                        self.motion_handler(arguments)
+                        logger.debug("Called motion handler")
+                    else:
+                        logger.warning("No motion handler registered")
+                elif message_name == "emotion":
+                    if self.emotion_handler:
+                        self.emotion_handler(arguments)
+                        logger.debug("Called emotion handler")
+                    else:
+                        logger.warning("No emotion handler registered")
+                elif message_name == "motion_and_emotion":
+                    if self.motion_handler:
+                        self.motion_handler(arguments)
+                        logger.debug("Called motion handler (from motion_and_emotion)")
+                    if self.emotion_handler:
+                        self.emotion_handler(arguments)
+                        logger.debug("Called emotion handler (from motion_and_emotion)")
+                else:
+                    logger.info(f"Received unhandled message: {message}")
+                    
+                return True
+                
+            except Exception as e:
+                logger.error(f"Error handling message {message_name}: {e}", exc_info=True)
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error handling message: {e}", exc_info=True)
+            return False
+
     def generate_memory(self) -> None:
         """
         Generate a memory from recent conversation history.
