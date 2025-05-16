@@ -13,14 +13,14 @@ public interface StorageService {
      * 
      * @param tfRootDir The root directory of the TF card
      */
-    void setStoreRootDir(String tfRootDir);
+    void setTfRootDir(String tfRootDir);
     
     /**
      * Initialize the storage service.
      * This method must be called after setting up any configuration (like TF card directory).
      * @throws IOException if initialization fails
      */
-    void initialize() throws IOException;
+    void initialize() throws Exception;
     
     // Message operations
     /**

@@ -26,7 +26,7 @@ public class SQLiteStorageService implements StorageService {
      * Set the TF card configuration directory for data storage
      * @param tfRootDir The root directory of the TF card
      */
-    public void setStoreRootDir(String tfRootDir) {
+    public void setTfRootDir(String tfRootDir) {
         if (tfRootDir != null) {
             this.tfConfigDir = Paths.get(tfRootDir, ".config", "ticos").toString();
         } else {
@@ -66,14 +66,10 @@ public class SQLiteStorageService implements StorageService {
     }
     
     @Override
-    public void initialize() throws IOException {
+    public void initialize() throws Exception {
         try {
             // Load SQLite JDBC driver
-            try {
-                Class.forName("org.sqlite.JDBC");
-            } catch (ClassNotFoundException e) {
-                throw new RuntimeException("SQLite JDBC driver not found. Please add SQLite JDBC driver to your classpath.", e);
-            }
+            Class.forName("org.sqlite.JDBC");
             
             // Create config directory if it doesn't exist
             Path configDir = tfConfigDir != null ? Paths.get(tfConfigDir) : Paths.get(DEFAULT_CONFIG_DIR);

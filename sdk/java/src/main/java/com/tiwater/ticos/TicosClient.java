@@ -2,7 +2,7 @@ package com.tiwater.ticos;
 
 import com.tiwater.ticos.server.UnifiedServer;
 import com.tiwater.ticos.storage.StorageService;
-
+import com.tiwater.ticos.util.ConfigService;
 import com.tiwater.ticos.util.HttpUtil;
 import org.json.JSONObject;
 
@@ -59,8 +59,12 @@ public class TicosClient {
             
         if (this.tfRootDir != null && storageService != null) {
             // Configure storage service to use TF card directory
-            storageService.setTfRootDir(this.tfRootDir);
-            storageService.initialize();
+            try {
+                storageService.setTfRootDir(this.tfRootDir);
+                storageService.initialize();
+            } catch (Exception e) {
+                LOGGER.severe("Failed to initialize storage service: " + e.getMessage());
+            }
         }
     }
 
@@ -86,7 +90,7 @@ public class TicosClient {
     }
 
     private final SaveMode saveMode;
-    private final String tfRootDir;
+    private String tfRootDir;  // Changed to non-final since it can be set after initialization
     private final ConfigService configService;
 
     public TicosClient(int port, SaveMode saveMode, String tfRootDir) {
@@ -104,11 +108,7 @@ public class TicosClient {
         }
         
         // Initialize ConfigService
-        try {
-            this.configService = new ConfigService(saveMode, tfRootDir);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to initialize config service", e);
-        }
+        this.configService = new ConfigService(saveMode, tfRootDir);
         
         this.memoryRounds = configService.getMemoryRounds();
     }

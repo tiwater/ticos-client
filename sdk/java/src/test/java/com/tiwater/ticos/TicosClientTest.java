@@ -2,7 +2,7 @@ package com.tiwater.ticos;
 
 import com.tiwater.ticos.storage.StorageService;
 import com.tiwater.ticos.storage.SQLiteStorageService;
-import com.tiwater.ticos.util.ConfigUtil;
+import com.tiwater.ticos.util.ConfigService;
 import org.json.JSONObject;
 import org.junit.After;
 import org.junit.Before;
@@ -15,30 +15,32 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.nio.file.Paths;
 import static org.junit.Assert.*;
 
 /**
  * Unit tests for TicosClient and related components
  */
 public class TicosClientTest {
-    private static final String TEST_DB = "test_ticos.db";
+    private static final String DEFAULT_DB_NAME = "ticos.db";
+    private static final String rootPath = System.getProperty("user.home") + "/.config/ticos_test";
     private TicosClient client;
     private StorageService storageService;
     
     @Before
     public void setUp() throws Exception {
         // Delete test database if it exists
-        new File(TEST_DB).delete();
+        new File(Paths.get(rootPath.toString(), DEFAULT_DB_NAME).toString()).delete();
         
         // Create a new storage service for testing with test database
-        storageService = new SQLiteStorageService(TEST_DB);
+        storageService = new SQLiteStorageService();
         
         // Use different ports for each test to avoid conflicts
         // We'll use a random port between 10000 and 20000
         int testPort = 10000 + (int)(Math.random() * 10000);
         
         // Create a client with test port
-        client = new TicosClient(testPort);
+        client = new TicosClient(testPort, SaveMode.EXTERNAL, rootPath);
         client.enableLocalStorage(storageService);
         client.start();
     }
@@ -49,7 +51,7 @@ public class TicosClientTest {
             client.stop();
         }
         // Clean up test database
-        new File(TEST_DB).delete();
+        new File(Paths.get(rootPath.toString(), DEFAULT_DB_NAME).toString()).delete();
     }
     
     @Test
@@ -140,9 +142,10 @@ public class TicosClientTest {
     }
     
     @Test
-    public void testConfigUtil() {
+    public void testConfigService() {
         // Test default values
-        assertEquals("Default API host should match", "stardust2.ticos.cn", ConfigUtil.getApiHost());
-        assertEquals("Default memory rounds should be 18", 18, ConfigUtil.getMemoryRounds());
+        ConfigService configService = new ConfigService(SaveMode.INTERNAL, null);
+        assertEquals("Default API host should match", "stardust2.ticos.cn", configService.getApiHost());
+        assertEquals("Default memory rounds should be 18", 18, configService.getMemoryRounds());
     }
 }

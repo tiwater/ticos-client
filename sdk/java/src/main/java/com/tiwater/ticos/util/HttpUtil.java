@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import com.tiwater.ticos.util.ConfigService;
 
 /**
  * Utility class for making HTTP requests
@@ -24,8 +25,11 @@ public class HttpUtil {
      */
     public static String summarizeConversation(List<JSONObject> conversationHistory, String lastMemory) {
         try {
-            String apiUrl = "https://" + ConfigUtil.getApiHost() + "/summarize";
-            String apiKey = ConfigUtil.getApiKey();
+            // Create a ConfigService instance
+            ConfigService configService = new ConfigService(null, null);
+            
+            String apiUrl = "https://" + configService.getApiHost() + "/summarize";
+            String apiKey = configService.getApiKey();
             
             if (apiKey == null || apiKey.isEmpty()) {
                 LOGGER.warning("API key is not configured");
