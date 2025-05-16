@@ -17,8 +17,22 @@ import java.util.logging.Logger;
 public class SQLiteStorageService implements StorageService {
     private static final Logger LOGGER = Logger.getLogger(SQLiteStorageService.class.getName());
     private static final String DEFAULT_DB_NAME = "ticos.db";
-    private static final String CONFIG_DIR = System.getProperty("user.home") + "/.config/ticos";
-    private final String dbUrl;
+    private static final String DEFAULT_CONFIG_DIR = System.getProperty("user.home") + "/.config/ticos";
+    private String tfConfigDir = null;
+    private String dbUrl;
+    private Connection connection;
+
+    /**
+     * Set the TF card configuration directory for data storage
+     * @param tfRootDir The root directory of the TF card
+     */
+    public void setStoreRootDir(String tfRootDir) {
+        if (tfRootDir != null) {
+            this.tfConfigDir = Paths.get(tfRootDir, ".config", "ticos").toString();
+        } else {
+            this.tfConfigDir = null;
+        }
+    }
     
     /**
      * Get the database URL for this storage service.
@@ -46,18 +60,15 @@ public class SQLiteStorageService implements StorageService {
     private Connection connection;
     
     /**
-     * Creates a new SQLiteStorageService with the default database name
+     * Creates a new SQLiteStorageService with the default database name.
+     * The storage service must be initialized using initialize() before use.
      */
     public SQLiteStorageService() {
-        this(DEFAULT_DB_NAME);
+        // No initialization here, must call initialize() after setup
     }
     
-    /**
-     * Creates a new SQLiteStorageService with the specified database name
-     * 
-     * @param dbName the name of the database file
-     */
-    public SQLiteStorageService(String dbName) {
+    @Override
+    public void initialize() throws IOException {
         try {
             // Load SQLite JDBC driver
             try {
@@ -67,32 +78,25 @@ public class SQLiteStorageService implements StorageService {
             }
             
             // Create config directory if it doesn't exist
-            Path configDir = Paths.get(CONFIG_DIR);
+            Path configDir = tfConfigDir != null ? Paths.get(tfConfigDir) : Paths.get(DEFAULT_CONFIG_DIR);
             if (!Files.exists(configDir)) {
                 Files.createDirectories(configDir);
                 LOGGER.info("Created config directory: " + configDir);
             }
             
-            // Set the database URL to be in the config directory
-            String dbPath = Paths.get(CONFIG_DIR, dbName).toString();
+            // Set the database URL
+            String dbPath = Paths.get(configDir.toString(), DEFAULT_DB_NAME).toString();
             this.dbUrl = "jdbc:sqlite:" + dbPath;
             LOGGER.info("Using database at: " + dbPath);
             
-            initializeDatabase();
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to initialize database directory", e);
-        }
-    }
-    
-    private void initializeDatabase() {
-        try {
+            // Initialize database
             connection = DriverManager.getConnection(dbUrl);
             try (Statement stmt = connection.createStatement()) {
                 stmt.execute(CREATE_MESSAGES_TABLE);
                 stmt.execute(CREATE_MEMORIES_TABLE);
             }
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Failed to initialize database: " + e.getMessage(), e);
+        } catch (SQLException | ClassNotFoundException e) {
+            throw new IOException("Failed to initialize database: " + e.getMessage(), e);
         }
     }
     

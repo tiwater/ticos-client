@@ -56,6 +56,11 @@ public class TicosClient {
      */
     public void enableLocalStorage(StorageService storageService) {
         this.storageService = storageService;
+            
+        if (this.tfRootDir != null && storageService != null) {
+            // Configure storage service to use TF card directory
+            storageService.setTfRootDir(this.tfRootDir);
+            storageService.initialize();
     }
 
     /**
@@ -84,9 +89,98 @@ public class TicosClient {
      * 
      * @param port The port number to listen on
      */
-    public TicosClient(int port) {
+    public enum SaveMode {
+        INTERNAL,
+        EXTERNAL
+    }
+
+    private final SaveMode saveMode;
+    private final String tfRootDir;
+    private final ConfigService configService;
+
+    public TicosClient(int port, SaveMode saveMode, String tfRootDir) {
         this.port = port;
-        this.memoryRounds = ConfigUtil.getMemoryRounds();
+        this.saveMode = saveMode;
+        
+        if (saveMode == SaveMode.EXTERNAL) {
+            // If tfRootDir is specified, use it directly
+            if (tfRootDir != null && !tfRootDir.isEmpty()) {
+                this.tfRootDir = tfRootDir;
+            } else {
+                // Otherwise, try to find the TF card directory
+                this.tfRootDir = findTfRootDirectory();
+            }
+        }
+        
+        // Initialize ConfigService
+        this.configService = new ConfigService(saveMode, tfRootDir);
+        try {
+            configService.initialize();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to initialize config service", e);
+        }
+        
+        this.memoryRounds = configService.getMemoryRounds();
+    }
+
+    /**
+     * Constructs a TicosClient server with default TF card directory search.
+     * 
+     * @param port The port number to listen on
+     * @param saveMode The save mode (INTERNAL or EXTERNAL)
+     */
+    public TicosClient(int port, SaveMode saveMode) {
+        this(port, saveMode, null);
+    }
+    }
+
+    private String findTfRootDirectory() {
+        try {
+            // Check if we're running on Linux
+            String osName = System.getProperty("os.name");
+            if (!osName.toLowerCase().contains("linux")) {
+                LOGGER.warning("Not running on Linux system, TF card detection not supported");
+                return null;
+            }
+            
+            // Get the mount points from the system
+            ProcessBuilder pb = new ProcessBuilder("mount");
+            Process process = pb.start();
+            
+            // Read the output of mount command
+            BufferedReader reader = new BufferedReader(
+                new InputStreamReader(process.getInputStream()));
+            String line;
+            
+            while ((line = reader.readLine()) != null) {
+                // Parse each line of mount output
+                // Format: device on mount_point type filesystem (options)
+                String[] parts = line.split(" ");
+                if (parts.length >= 3) {
+                    String mountPoint = parts[2];
+                    
+                    // Check if this mount point is in /media/
+                    if (mountPoint.startsWith("/media/")) {
+                        File mountDir = new File(mountPoint);
+                        if (mountDir.exists() && mountDir.isDirectory()) {
+                            // Check if this looks like a TF card mount
+                            // Typically TF cards have UUID-like names or are mounted with labels
+                            String mountName = mountPoint.substring(mountPoint.lastIndexOf("/") + 1);
+                            if (mountName.matches("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}") ||
+                                mountName.matches("[a-zA-Z0-9_\-]+")) { // Also accept simple names
+                                return mountDir.getAbsolutePath();
+                            }
+                        }
+                    }
+                }
+            }
+            
+            LOGGER.warning("No TF card mount point found");
+            return null;
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error finding TF card mount point: " + e.getMessage(), e);
+            return null;
+        }
     }
 
     /**
