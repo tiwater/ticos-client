@@ -1,5 +1,7 @@
 package com.tiwater.ticos;
 
+import org.json.JSONObject;
+
 /**
  * Interface for handling incoming messages.
  */

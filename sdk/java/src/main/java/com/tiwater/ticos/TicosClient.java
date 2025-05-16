@@ -345,6 +345,7 @@ public class TicosClient implements MessageCallbackInterface {
 
     @Override
     public boolean handleMessage(JSONObject message) {
-        return handleWebSocketMessage(message, null);
+        handleWebSocketMessage(message, null);
+        return true;
     }
 }
