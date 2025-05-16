@@ -3,9 +3,6 @@ from setuptools import setup, find_packages
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-with open("requirements.txt", "r", encoding="utf-8") as fh:
-    requirements = fh.read().splitlines()
-
 setup(
     name="ticos-client",
     version="0.2.0",  # Major version bump due to significant changes
@@ -33,7 +30,18 @@ setup(
         "Typing :: Typed",
     ],
     python_requires=">=3.7",
-    install_requires=requirements,
+    install_requires=[
+        "fastapi>=0.68.0,<1.0.0",
+        "uvicorn>=0.15.0,<1.0.0",
+        "pydantic>=1.8.0,<2.0.0",
+        "python-multipart>=0.0.5,<1.0.0",
+        "python-jose[cryptography]>=3.3.0,<4.0.0",
+        "passlib[bcrypt]>=1.7.4,<2.0.0",
+        "python-dotenv>=0.19.0,<1.0.0",
+        "SQLAlchemy>=1.4.0,<2.0.0",
+        "alembic>=1.7.0,<2.0.0",
+        "python-dateutil>=2.8.2,<3.0.0",
+    ],
     extras_require={
         "dev": [
             "pytest>=6.0",
