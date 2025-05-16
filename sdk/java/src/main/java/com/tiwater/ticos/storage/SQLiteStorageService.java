@@ -57,8 +57,6 @@ public class SQLiteStorageService implements StorageService {
         "datetime TEXT NOT NULL" +
         ")";
     
-    private Connection connection;
-    
     /**
      * Creates a new SQLiteStorageService with the default database name.
      * The storage service must be initialized using initialize() before use.

@@ -116,3 +116,11 @@ class ConfigService:
     def get_memory_rounds(self) -> int:
         """Get the number of memory rounds."""
         return self.get("conversation.memory_rounds", 18)
+    
+    def get_api_host(self) -> int:
+        """Get the api host."""
+        return self.get("api.host", "stardust2.ticos.cn")
+    
+    def get_api_key(self) -> int:
+        """Get the api key for the terminal."""
+        return self.get("api.api_key", "")

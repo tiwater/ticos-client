@@ -2,7 +2,7 @@ package com.tiwater.ticos;
 
 import com.tiwater.ticos.server.UnifiedServer;
 import com.tiwater.ticos.storage.StorageService;
-import com.tiwater.ticos.util.ConfigUtil;
+
 import com.tiwater.ticos.util.HttpUtil;
 import org.json.JSONObject;
 
@@ -83,16 +83,6 @@ public class TicosClient {
      */
     public interface EmotionHandler {
         void handleEmotion(JSONObject parameters);
-    }
-    
-    /**
-     * Constructs a TicosClient server.
-     * 
-     * @param port The port number to listen on
-     */
-    public enum SaveMode {
-        INTERNAL,
-        EXTERNAL
     }
 
     private final SaveMode saveMode;

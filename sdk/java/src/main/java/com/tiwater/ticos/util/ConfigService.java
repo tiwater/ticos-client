@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import com.tiwater.ticos.SaveMode;
 
 public class ConfigService {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConfigService.class);
@@ -88,8 +89,8 @@ public class ConfigService {
             }
 
             if (toml.hasErrors()) {
-                LOGGER.severe("Error parsing config file:");
-                toml.errors().forEach(error -> LOGGER.severe(error.toString()));
+                LOGGER.error("Error parsing config file:");
+                toml.errors().forEach(error -> LOGGER.error(error.toString()));
             }
         } catch (IOException e) {
             throw new IOException("Failed to initialize config service: " + e.getMessage(), e);
@@ -103,34 +104,22 @@ public class ConfigService {
             String[] parts = path.split("\\.");
             
             for (String part : parts) {
-                if (value instanceof TomlTable) {
-                    value = ((TomlTable) value).get(part);
+                if (value instanceof TomlParseResult) {
+                    value = ((TomlParseResult) value).getTable(part);
                 } else {
-                    return defaultValue;
-                }
-                
-                if (value == null) {
-                    return defaultValue;
+                    break;
                 }
             }
             
-            if (value != null) {
-                if (defaultValue instanceof Integer) {
-                    if (value instanceof Long) {
-                        return (T) Integer.valueOf(((Long) value).intValue());
-                    } else if (value instanceof Integer) {
-                        return (T) value;
-                    }
-                } else if (value.getClass().isInstance(defaultValue)) {
-                    return (T) value;
-                } else if (defaultValue instanceof String) {
-                    return (T) String.valueOf(value);
-                }
+            if (value instanceof TomlParseResult) {
+                return defaultValue;
             }
+            
+            return (T) value;
         } catch (Exception e) {
-            LOGGER.warn("Error reading config value: " + path, e);
+            LOGGER.error("Error getting config value for path '" + path + "': " + e.getMessage());
+            return defaultValue;
         }
-        return defaultValue;
     }
 
     /**
@@ -139,39 +128,58 @@ public class ConfigService {
      * @param override The overriding configuration
      * @return The merged configuration
      */
-    private static TomlParseResult mergeToml(TomlParseResult base, TomlParseResult override) {
+    private TomlParseResult mergeToml(TomlParseResult base, TomlParseResult override) {
         if (override == null) {
             return base;
         }
         
-        // Create a new TOML table to hold the merged configuration
-        TomlTable merged = new TomlTable();
+        // Get root tables
+        TomlTable baseTable = base.getTable();
+        TomlTable overrideTable = override.getTable();
         
-        // First add all values from the base configuration
-        base.getTable().forEach((key, value) -> {
-            if (value instanceof TomlTable) {
-                merged.put(key, new TomlTable());
-                ((TomlTable) value).forEach((subKey, subValue) -> 
-                    ((TomlTable) merged.get(key)).put(subKey, subValue));
+        // Create new result
+        TomlTable result = new TomlTable();
+        
+        // Copy all base values first
+        baseTable.forEach((key, value) -> {
+            if (value instanceof TomlParseResult) {
+                result.put(key, value);
             } else {
-                merged.put(key, value);
+                result.put(key, value);
             }
         });
         
-        // Then override with values from the override configuration
-        override.getTable().forEach((key, value) -> {
-            if (value instanceof TomlTable) {
-                if (!merged.containsKey(key)) {
-                    merged.put(key, new TomlTable());
+        // Override with values from override
+        overrideTable.forEach((key, value) -> {
+            if (value instanceof TomlParseResult) {
+                TomlParseResult baseSubTable = base.getTable(key);
+                TomlParseResult overrideSubTable = (TomlParseResult) value;
+                
+                TomlTable mergedSubTable = new TomlTable();
+                
+                // Copy base sub-table values
+                if (baseSubTable != null) {
+                    baseSubTable.forEach((subKey, subValue) -> {
+                        mergedSubTable.put(subKey, subValue);
+                    });
                 }
-                ((TomlTable) value).forEach((subKey, subValue) -> 
-                    ((TomlTable) merged.get(key)).put(subKey, subValue));
+                
+                // Override with values from override sub-table
+                overrideSubTable.forEach((subKey, subValue) -> {
+                    mergedSubTable.put(subKey, subValue);
+                });
+                
+                result.put(key, mergedSubTable);
             } else {
-                merged.put(key, value);
+                result.put(key, value);
             }
         });
         
-        return new TomlParseResult(merged, null);
+        return new TomlParseResult(result, null);
+    }
+
+    public String getAgentId() {
+        return get("agent_id", "");
     }
 
     public int getContextRounds() {
@@ -180,6 +188,14 @@ public class ConfigService {
 
     public int getMemoryRounds() {
         return get("conversation.memory_rounds", 18);
+    }
+
+    public String getApiHost() {
+        return get("api.host", "stardust2.ticos.cn");
+    }
+    
+    public String getApiKey() {
+        return get("api.api_key", "");
     }
 
 }
