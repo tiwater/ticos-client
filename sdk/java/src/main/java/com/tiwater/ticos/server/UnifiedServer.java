@@ -1,6 +1,6 @@
 package com.tiwater.ticos.server;
 
-import com.tiwater.ticos.TicosClient;
+import com.tiwater.ticos.MessageCallbackInterface;
 import com.tiwater.ticos.storage.StorageService;
 import io.undertow.Undertow;
 import io.undertow.server.HttpHandler;
@@ -34,15 +34,15 @@ import static io.undertow.Handlers.websocket;
 public class UnifiedServer {
     private static final Logger LOGGER = Logger.getLogger(UnifiedServer.class.getName());
     private final int port;
+    private final MessageCallbackInterface messageCallback;
     private final StorageService storageService;
-    private final TicosClient ticosClient;
     private Undertow server;
     private final Set<WebSocketChannel> webSocketConnections = new CopyOnWriteArraySet<>();
     
-    public UnifiedServer(int port, StorageService storageService, TicosClient ticosClient) {
+    public UnifiedServer(int port, MessageCallbackInterface messageCallback, StorageService storageService) {
         this.port = port;
+        this.messageCallback = messageCallback;
         this.storageService = storageService;
-        this.ticosClient = ticosClient;
     }
     
     public void start() {
@@ -60,7 +60,7 @@ public class UnifiedServer {
                         String messageText = message.getData();
                         try {
                             JSONObject jsonMessage = new JSONObject(messageText);
-                            ticosClient.handleWebSocketMessage(jsonMessage, channel);
+                            messageCallback.handleMessage(jsonMessage);
                         } catch (Exception e) {
                             LOGGER.log(Level.SEVERE, "Error processing WebSocket message: " + e.getMessage(), e);
                         }

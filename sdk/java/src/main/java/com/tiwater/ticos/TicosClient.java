@@ -31,7 +31,7 @@ import java.util.UUID;
  * @version 0.2.0
  * @since 1.0
  */
-public class TicosClient {
+public class TicosClient implements MessageCallbackInterface {
     private static final String TAG = "TicosClient";
     private static final Logger LOGGER = Logger.getLogger(TAG);
     private final int port;
@@ -193,22 +193,15 @@ public class TicosClient {
         this.emotionHandler = handler;
     }
 
-    /**
-     * Starts the server and begins listening for connections.
-     * 
-     * @return true if server started successfully, false otherwise
-     */
-    public boolean start() {
-        try {
-            // Create and start the unified server for both HTTP and WebSocket
-            unifiedServer = new UnifiedServer(port, storageService, this);
-            unifiedServer.start();
-            LOGGER.info("Server started on port " + port);
-            return true;
-        } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Failed to start server: " + e.getMessage(), e);
-            return false;
+    public void start() {
+        if (unifiedServer != null) {
+            LOGGER.warning("Server is already running");
+            return;
         }
+        
+        unifiedServer = new UnifiedServer(port, this, storageService);
+        unifiedServer.start();
+        LOGGER.info("Started server on port " + port);
     }
 
     /**
@@ -348,5 +341,10 @@ public class TicosClient {
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Error generating memory: " + e.getMessage(), e);
         }
+    }
+
+    @Override
+    public boolean handleMessage(JSONObject message) {
+        return handleWebSocketMessage(message, null);
     }
 }

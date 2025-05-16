@@ -16,7 +16,9 @@ from .utils import find_tf_root_directory
 
 logger = logging.getLogger(__name__)
 
-class TicosClient:
+from .ticos_client_interface import MessageCallbackInterface
+
+class TicosClient(MessageCallbackInterface):
     """
     TicosClient is a Python client for the Ticos Agent system.
     It provides a unified interface for handling both HTTP and WebSocket connections,
@@ -110,42 +112,34 @@ class TicosClient:
         self.emotion_handler = handler
         logger.debug("Emotion handler set")
 
-    def start(self) -> bool:
+    def start(self):
         """
         Start the Ticos server.
         """
-        try:
-            if self.running:
-                logger.warning("Server is already running")
-                return False
-                
-            # Initialize the server if not already done
-            if self.server is None:
+        if self.running:
+            logger.warning("Ticos server is already running")
+            return
+        
+        # Start the server in a separate thread
+        def run_server():
+            try:
                 self.server = UnifiedServer(
+                    message_callback=self,
                     port=self.port,
                     storage_service=self.storage,
-                    message_handler=self.handle_message,
-                    motion_handler=self.motion_handler,
-                    emotion_handler=self.emotion_handler
                 )
-                
-            # Start the server in a separate thread
-            self.server_thread = threading.Thread(target=self.server.run)
-            self.server_thread.daemon = True
-            self.server_thread.start()
-            
-            # Wait a moment for the server to start
-            time.sleep(0.1)
-            
-            self.running = True
-            logger.info(f"Server started on port {self.port}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to start server: {e}")
-            self.running = False
-            return False
-    
+                import uvicorn
+                uvicorn.run(self.server.app, host="0.0.0.0", port=self.port, log_level="info")
+            except Exception as e:
+                logger.error(f"Failed to start server: {e}")
+                self.running = False
+                return False
+        
+        self.server_thread = threading.Thread(target=run_server, daemon=True)
+        self.server_thread.start()
+        self.running = True
+        logger.info(f"Ticos server started on port {self.port}")
+
     def stop(self):
         """Stop the server and clean up resources."""
         if not self.running:

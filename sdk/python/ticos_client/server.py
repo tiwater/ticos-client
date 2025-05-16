@@ -17,6 +17,7 @@ from pydantic import ValidationError
 
 from .models import Message, Memory, MessageRequest, MessageResponse, MessagesResponse
 from .storage import StorageService
+from .ticos_client_interface import MessageCallbackInterface, MessageRole
 
 logger = logging.getLogger(__name__)
 
@@ -25,17 +26,13 @@ class UnifiedServer:
     
     def __init__(
         self,
+        message_callback: MessageCallbackInterface,
         port: int = 9999,
-        storage_service: Optional[StorageService] = None,
-        message_handler: Optional[Callable[[Dict[str, Any]], None]] = None,
-        motion_handler: Optional[Callable[[Dict[str, Any]], None]] = None,
-        emotion_handler: Optional[Callable[[Dict[str, Any]], None]] = None
-    ):
+        storage_service: Optional[StorageService] = None
+    ):  
         self.port = port
         self.storage = storage_service
-        self.message_handler = message_handler
-        self.motion_handler = motion_handler
-        self.emotion_handler = emotion_handler
+        self.ticos_client = None
         self.app = FastAPI(title="Ticos Agent Server")
         self._setup_middleware()
         self._setup_routes()
@@ -164,12 +161,8 @@ class UnifiedServer:
         if not isinstance(message, dict):
             logger.error(f"Invalid message format: {message}")
             return False
-            
-        # Call the client's message handler
-        if self.message_handler:
-            self.message_handler(message)
-            return True
-            
+        if hasattr(self, 'ticos_client') and self.ticos_client:
+            return self.ticos_client.handle_message(message)
         return False
             
     

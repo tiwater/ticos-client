@@ -2,6 +2,7 @@ from .ticos_client import TicosClient, DefaultMessageHandler
 from .models import Message, MessageRole, Memory, MemoryType, MessageRequest, MessageResponse, MessagesResponse
 from .storage import StorageService, SQLiteStorageService
 from .server import UnifiedServer
+from .ticos_client_interface import MessageCallbackInterface
 
 __all__ = [
     'TicosClient',
@@ -16,4 +17,5 @@ __all__ = [
     'StorageService',
     'SQLiteStorageService',
     'UnifiedServer'
+    'MessageCallbackInterface'
 ]
