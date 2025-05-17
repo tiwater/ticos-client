@@ -100,7 +100,7 @@ class UnifiedServer:
                 logger.error(f"Error getting latest memories: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
-        @self.app.websocket("/ws")
+        @self.app.websocket("/realtime")
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
             await self._register_websocket(websocket)

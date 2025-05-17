@@ -57,10 +57,12 @@ public class TicosClient implements MessageCallbackInterface {
     public void enableLocalStorage(StorageService storageService) {
         this.storageService = storageService;
             
-        if (this.tfRootDir != null && storageService != null) {
+        if (storageService != null) {
             // Configure storage service to use TF card directory
             try {
-                storageService.setTfRootDir(this.tfRootDir);
+                if(this.tfRootDir != null){
+                    storageService.setTfRootDir(this.tfRootDir);
+                }
                 storageService.initialize();
             } catch (Exception e) {
                 LOGGER.severe("Failed to initialize storage service: " + e.getMessage());
@@ -157,6 +159,7 @@ public class TicosClient implements MessageCallbackInterface {
                             String mountName = mountPoint.substring(mountPoint.lastIndexOf("/") + 1);
                             if (mountName.matches("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}") ||
                                 mountName.matches("[a-zA-Z0-9_\\-]+")) { // Also accept simple names
+                                LOGGER.info("Found TF card mount point: " + mountDir.getAbsolutePath());
                                 return mountDir.getAbsolutePath();
                             }
                         }

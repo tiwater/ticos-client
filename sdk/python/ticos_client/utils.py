@@ -41,6 +41,7 @@ def find_tf_root_directory() -> Optional[str]:
                         mount_name = mount_point.rsplit("/", 1)[-1]
                         if (mount_name.match("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}") or
                             mount_name.match("[a-zA-Z0-9_\-]+")):  # Also accept simple names
+                            logger.info(f"Found TF card mount point: {mount_dir}")
                             return str(mount_dir)
                             
         logger.warning("No TF card mount point found")

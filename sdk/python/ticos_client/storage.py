@@ -85,12 +85,6 @@ class SQLiteStorageService(StorageService):
         self.db_path = None
         self.store_root_dir = None
     
-    def _get_db_path(self) -> str:
-        """Get the database path, creating the config directory if needed"""
-        config_dir = os.path.join(Path.home(), ".config", "ticos")
-        os.makedirs(config_dir, exist_ok=True)
-        return os.path.join(config_dir, "ticos.db")
-    
     def set_store_root_dir(self, tf_root_dir: str) -> None:
         """
         Set the root directory for storage.
@@ -113,6 +107,9 @@ class SQLiteStorageService(StorageService):
             
             # Set database path
             self.db_path = str(config_dir / "ticos.db")
+
+            logger.info(Path.home())
+            logger.info(self.db_path)
             
             # Initialize database tables
             with sqlite3.connect(self.db_path) as conn:

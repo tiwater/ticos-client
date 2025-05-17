@@ -86,7 +86,7 @@ public class UnifiedServer {
         // Create path handler with WebSocket endpoint
         PathHandler pathHandler = path()
             // WebSocket endpoint
-            .addPrefixPath("/ws", websocket(wsCallback))
+            .addPrefixPath("/realtime", websocket(wsCallback))
             
             // HTTP endpoints
             .addExactPath("/memories/latest", exchange -> {

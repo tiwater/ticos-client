@@ -1,9 +1,9 @@
-import socket
 import json
-import threading
-import time
+import asyncio
+import websockets
 import logging
 import random
+import time
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -12,100 +12,108 @@ class TicosAgent:
     def __init__(self, host='localhost', port=9999):
         self.host = host
         self.port = port
-        self.socket = None
+        self.websocket = None
         self.running = True
-        self.receive_thread = None
 
-    def connect(self):
-        """Connect to the server"""
+    async def _connect(self):
+        """Connect to the WebSocket server"""
+        uri = f"ws://{self.host}:{self.port}/realtime"
         try:
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.connect((self.host, self.port))
-            logger.info(f"Connected to server at {self.host}:{self.port}")
-            
-            # Start receive thread
-            self.receive_thread = threading.Thread(target=self._receive_loop, daemon=True)
-            self.receive_thread.start()
+            self.websocket = await websockets.connect(uri)
+            logger.info(f"Connected to WebSocket server at {uri}")
             return True
         except Exception as e:
             logger.error(f"Failed to connect: {str(e)}")
-            self._cleanup()
             return False
+
+    async def connect(self):
+        """Connect to the server"""
+        return await self._connect()
+
+    async def _disconnect(self):
+        """Disconnect from the WebSocket server"""
+        self.running = False
+        if self.websocket:
+            try:
+                await self.websocket.close()
+            except:
+                pass
+            self.websocket = None
+        logger.info("Disconnected from WebSocket server")
 
     def disconnect(self):
         """Disconnect from the server"""
-        self.running = False
-        self._cleanup()
-        logger.info("Disconnected from server")
-
-    def _cleanup(self):
-        """Clean up connection"""
-        if self.socket:
+        if self.loop:
             try:
-                self.socket.close()
+                self.loop.run_until_complete(self._disconnect())
+            except Exception as e:
+                logger.error(f"Error during disconnect: {str(e)}")
+
+    async def _cleanup(self):
+        """Clean up WebSocket connection"""
+        if self.websocket:
+            try:
+                await self.websocket.close()
             except:
                 pass
-            self.socket = None
+            self.websocket = None
 
-    def send_message(self, message):
-        """Send a message to the server"""
-        if not self.socket:
-            logger.error("Not connected to server")
+    async def _send_message(self, message):
+        """Send a message to the WebSocket server"""
+        if not self.websocket:
+            logger.error("Not connected to WebSocket server")
             return False
         
         try:
             message_str = json.dumps(message)
-            message_bytes = message_str.encode('utf-8')
-            length_bytes = len(message_bytes).to_bytes(4, byteorder='big')
-            self.socket.send(length_bytes + message_bytes)
+            await self.websocket.send(message_str)
             return True
         except Exception as e:
             logger.error(f"Failed to send message: {str(e)}")
             return False
 
-    def _receive_loop(self):
-        """Receive messages from the server"""
+    async def send_message(self, message):
+        """Send a message to the server"""
+        if not self.websocket:
+            logger.error("Not connected to WebSocket server")
+            return False
+        
+        try:
+            message_str = json.dumps(message)
+            await self.websocket.send(message_str)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send message: {str(e)}")
+            return False
+
+    async def _receive_loop(self):
+        """Receive messages from the WebSocket server"""
         while self.running:
             try:
-                # First read message length (4 bytes)
-                length_bytes = self._receive_exactly(4)
-                if not length_bytes:
-                    break
-                
-                message_length = int.from_bytes(length_bytes, byteorder='big')
-                
-                # Then read the actual message
-                message_bytes = self._receive_exactly(message_length)
-                if not message_bytes:
-                    break
-                
-                message = json.loads(message_bytes.decode('utf-8'))
-                logger.info(f"Received message: {message}")
+                message = await self.websocket.recv()
+                message_data = json.loads(message)
+                logger.info(f"Received message: {message_data}")
             except Exception as e:
                 if self.running:
                     logger.error(f"Error receiving message: {str(e)}")
                 break
         
-        self._cleanup()
+        await self._cleanup()
 
-    def _receive_exactly(self, n):
-        """Helper method to receive exactly n bytes"""
-        data = bytearray()
-        while len(data) < n:
-            try:
-                packet = self.socket.recv(n - len(data))
-                if not packet:
-                    return None
-                data.extend(packet)
-            except Exception:
-                return None
-        return data
+    async def start_receive_loop(self):
+        """Start the receive loop"""
+        return asyncio.create_task(self._receive_loop())
 
-def main():
+
+
+async def main():
     # Create and connect the agent
     agent = TicosAgent(host='localhost', port=9999)
-    if not agent.connect():
+    if not await agent.connect():
         return
+
+    # Start receive loop
+    receive_task = await agent.start_receive_loop()
 
     action_list = ["move_forward", "move_backward", "move_leftward", "move_rightward", "turn_left", "turn_right", "wave_hand", "hug", "give_me_five", "raise_fist", "thumb_up", "come_on"]
     
@@ -113,7 +121,7 @@ def main():
         # Send some test messages
         while True:
             # Send a motion command
-            agent.send_message({
+            await agent.send_message({
                 "name": "motion",
                 "arguments": {
                     "motion_tag": random.choice(action_list),
@@ -121,10 +129,10 @@ def main():
                     "repeat": random.randint(1, 5)
                 }
             })
-            time.sleep(2)
+            await asyncio.sleep(2)
             
             # Send an emotion command
-            agent.send_message({
+            await agent.send_message({
                 "name": "emotion",
                 "arguments": {
                     "emotion_tag": str(random.randint(1, 3)),
@@ -132,11 +140,14 @@ def main():
                     "duration": random.uniform(1.0, 5.0)
                 }
             })
-            time.sleep(2)
+            await asyncio.sleep(2)
     except KeyboardInterrupt:
         logger.info("Stopping agent...")
     finally:
-        agent.disconnect()
+        agent.running = False
+        if agent.websocket:
+            await agent.websocket.close()
+        await receive_task
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

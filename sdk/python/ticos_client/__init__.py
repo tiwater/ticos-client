@@ -3,6 +3,7 @@ from .models import Message, MessageRole, Memory, MemoryType, MessageRequest, Me
 from .storage import StorageService, SQLiteStorageService
 from .server import UnifiedServer
 from .ticos_client_interface import MessageCallbackInterface
+from .enums import SaveMode
 
 __all__ = [
     'TicosClient',
@@ -17,5 +18,6 @@ __all__ = [
     'StorageService',
     'SQLiteStorageService',
     'UnifiedServer'
-    'MessageCallbackInterface'
+    'MessageCallbackInterface',
+    'SaveMode'
 ]

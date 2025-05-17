@@ -67,8 +67,8 @@ class TicosClient(MessageCallbackInterface):
         if self.save_mode == SaveMode.EXTERNAL and self.tf_root_dir:
             storage_service.set_store_root_dir(self.tf_root_dir)
         else:
-            # For internal storage, use a default directory
-            storage_service.set_store_root_dir(os.path.join(os.getcwd(), 'storage'))
+            # For internal storage, use user's home directory
+            storage_service.set_store_root_dir(None)  # None will make SQLiteStorageService use home directory
         
         try:
             storage_service.initialize()
@@ -224,17 +224,16 @@ class TicosClient(MessageCallbackInterface):
             
             logger.debug(f"Sending message: {message}")
             
-            # Broadcast the message
+            # Send message directly using WebSocket
             if self.server and hasattr(self.server, 'broadcast_message'):
                 try:
-                    if hasattr(self.server, 'loop') and self.server.loop.is_running():
-                        future = asyncio.run_coroutine_threadsafe(
-                            self.server.broadcast_message(message),
-                            self.server.loop
-                        )
-                        future.result(timeout=5.0)
-                    else:
-                        logger.warning("Server event loop is not running")
+                    # Create a new event loop for this operation
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    
+                    # Run the broadcast coroutine
+                    loop.run_until_complete(self.server.broadcast_message(message))
+                    loop.close()
                 except Exception as e:
                     logger.warning(f"Error broadcasting message: {e}")
             else:
