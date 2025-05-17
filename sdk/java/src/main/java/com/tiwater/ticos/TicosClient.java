@@ -322,7 +322,9 @@ public class TicosClient implements MessageCallbackInterface {
         
         try {
             // Get the latest messages
-            List<JSONObject> messages = storageService.getMessages(0, memoryRounds, true);
+            List<JSONObject> messages = storageService.getMessages(0, memoryRounds, false);
+            // Reverse the array to get oldest first
+            Collections.reverse(messages);
             
             // Get the latest memory for context
             JSONObject latestMemory = storageService.getLatestMemory();

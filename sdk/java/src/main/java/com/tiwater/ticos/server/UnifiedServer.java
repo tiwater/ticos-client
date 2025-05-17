@@ -133,6 +133,9 @@ public class UnifiedServer {
                 item.put("content", msg.optString("content"));
                 response.put(item);
             }
+
+            // Reverse the array to get oldest first
+            Collections.reverse(response);
             
             sendJsonResponse(exchange, 200, response.toString());
         } else {

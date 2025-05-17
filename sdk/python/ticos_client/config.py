@@ -18,8 +18,9 @@ class ConfigService:
             tf_root_dir: The root directory of the TF card, or None if using internal storage
         """
         self.save_mode = save_mode
+        self.tf_root_dir = tf_root_dir
+        self.tf_config_dir = Path(tf_root_dir) / ".config" / "ticos" if tf_root_dir else Path.home() / ".config" / "ticos"
         self.user_config_dir = Path.home() / ".config" / "ticos"
-        self.tf_config_dir = Path(tf_root_dir) / ".config" / "ticos" if tf_root_dir else None
         self._config = None
         self.initialize()
         

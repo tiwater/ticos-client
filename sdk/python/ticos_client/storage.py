@@ -107,9 +107,6 @@ class SQLiteStorageService(StorageService):
             
             # Set database path
             self.db_path = str(config_dir / "ticos.db")
-
-            logger.info(Path.home())
-            logger.info(self.db_path)
             
             # Initialize database tables
             with sqlite3.connect(self.db_path) as conn:

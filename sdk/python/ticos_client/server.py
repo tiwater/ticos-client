@@ -3,7 +3,6 @@ import json
 import logging
 import threading
 import time
-import uuid
 from datetime import datetime
 from typing import Dict, Any, Optional, Callable, List, Union
 
@@ -135,34 +134,6 @@ class UnifiedServer:
     
     async def _handle_websocket_message(self, message: Dict[str, Any], websocket: WebSocket):
         """Handle incoming WebSocket message"""
-        try:
-            # Save the message if storage is available
-            if self.storage:
-                msg = Message(
-                    id=str(uuid.uuid4()),
-                    role=MessageRole.USER,
-                    content=json.dumps(message),
-                    datetime=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                )
-                self.storage.save_message(msg)
-            
-            # Handle the message
-            await self._handle_message(message)
-            
-        except Exception as e:
-            logger.error(f"Error handling WebSocket message: {e}")
-            await websocket.send_json({"status": "error", "message": str(e)})
-    
-    async def _handle_message(self, message: Dict[str, Any]) -> bool:
-        """
-        Handle incoming WebSocket messages.
-        
-        Args:
-            message: The JSON message received from client
-            
-        Returns:
-            bool: True if message was handled successfully
-        """
         try:
             if not isinstance(message, dict):
                 logger.warning(f"Invalid message type: {type(message)}")

@@ -3,7 +3,6 @@ import json
 import logging
 import threading
 import time
-import uuid
 from datetime import datetime
 import os
 from typing import Callable, Dict, Any, Optional, List, Union
@@ -334,7 +333,7 @@ class TicosClient(MessageCallbackInterface):
             last_memory_content = latest_memory["content"] if latest_memory else ""
             
             # Use HttpUtil to call the summarization API
-            memory_content = HttpUtil.summarize_conversation(messages, last_memory_content)
+            memory_content = HttpUtil.summarize_conversation(reversed(messages), last_memory_content)
             
             if memory_content:
                 # Save the new memory
