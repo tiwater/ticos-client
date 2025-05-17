@@ -13,6 +13,7 @@ from .models import Message, MessageRole, Memory, MemoryType
 from .enums import SaveMode
 from .config import ConfigService
 from .utils import find_tf_root_directory
+from .http_util import HttpUtil
 import requests
 
 logger = logging.getLogger(__name__)
@@ -322,6 +323,9 @@ class TicosClient(MessageCallbackInterface):
             return
             
         try:
+            if not self.storage:
+                return
+                
             # Get the latest messages
             messages = self.storage.get_messages(0, self.memory_rounds, True)
             
@@ -329,9 +333,8 @@ class TicosClient(MessageCallbackInterface):
             latest_memory = self.storage.get_latest_memory()
             last_memory_content = latest_memory["content"] if latest_memory else ""
             
-            # Use a summarization API or generate a simple summary
-            # In Java version, this calls HttpUtil.summarizeConversation
-            memory_content = self._summarize_conversation(messages, last_memory_content)
+            # Use HttpUtil to call the summarization API
+            memory_content = HttpUtil.summarize_conversation(messages, last_memory_content)
             
             if memory_content:
                 # Save the new memory
@@ -366,7 +369,12 @@ class TicosClient(MessageCallbackInterface):
             for msg in messages:
                 try:
                     # Convert Message object to dictionary
-                    content = msg.content
+                    content = json.loads(msg.content) if isinstance(msg.content, str) else msg.content
+                    if isinstance(content, dict) and "arguments" in content:
+                        if "content" in content["arguments"]:
+                            contents.append(f"{msg.role.value}: {content['arguments']['content']}")
+                        elif "text" in content["arguments"]:
+                            contents.append(f"{msg.role.value}: {content['arguments']['text']}")
                 except Exception as e:
                     logger.warning(f"Error processing message for summarization: {e}")
             
