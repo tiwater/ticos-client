@@ -16,6 +16,8 @@ public class Main {
     public static void main(String[] args) {
         // Create and start the client with internal save mode
         TicosClient client = new TicosClient(9999, SaveMode.INTERNAL);
+        // TicosClient client = new TicosClient(9999, SaveMode.EXTERNAL, "/Users/sawyer/.config/ticos/sim_sd");
+    
         
         client.enableLocalStorage(new SQLiteStorageService());
         // Set message handlers

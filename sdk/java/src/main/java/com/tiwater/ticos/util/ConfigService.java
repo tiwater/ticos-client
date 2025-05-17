@@ -1,7 +1,7 @@
 package com.tiwater.ticos.util;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.tomlj.Toml;
 import org.tomlj.TomlParseResult;
 import org.tomlj.TomlTable;
@@ -10,10 +10,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import com.tiwater.ticos.SaveMode;
 
 public class ConfigService {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ConfigService.class);
+    private static final Logger LOGGER = Logger.getLogger(ConfigService.class.getName());
     private static final String CONFIG_FILE = "config.toml";
     private final String userConfigDir;
     private final String tfConfigDir;
@@ -42,6 +44,7 @@ public class ConfigService {
      */
     public void initialize() {
         try {
+
             // Always create user config directory
             Path userConfigDirPath = Paths.get(userConfigDir);
             if (!Files.exists(userConfigDirPath)) {
@@ -90,18 +93,17 @@ public class ConfigService {
                 
             // Log the final merged configuration
             StringBuilder configLog = new StringBuilder("Final merged configuration:\n");
-            TomlTable rootTable = toml.getTable("");
-            logTomlTable(configLog, rootTable, "  ");
+            logTomlTable(configLog, toml, "  ");
             LOGGER.info(configLog.toString());
 
 
             if (toml.hasErrors()) {
-                LOGGER.error("Error parsing config file:");
-                toml.errors().forEach(error -> LOGGER.error(error.toString()));
+                LOGGER.severe("Error parsing config file:");
+                toml.errors().forEach(error -> LOGGER.severe(error.toString()));
             }
         } catch (IOException e) {
             // throw new IOException("Failed to initialize config service: " + e.getMessage(), e);
-            LOGGER.error("Failed to initialize config service: " + e.getMessage());
+            LOGGER.severe("Failed to initialize config service: " + e.getMessage());
         }
     }
 
@@ -130,25 +132,25 @@ public class ConfigService {
     @SuppressWarnings("unchecked")
     private <T> T get(String path, T defaultValue) {
         try {
-            Object value = toml;
             String[] parts = path.split("\\.");
-            // Drill down to the parent table of the target value
+            TomlTable table = toml;
             for (int i = 0; i < parts.length - 1; i++) {
-                if (value instanceof TomlParseResult) {
-                    value = ((TomlParseResult) value).getTable(parts[i]);
+                Object next = table.get(parts[i]);
+                if (next instanceof TomlTable) {
+                    table = (TomlTable) next;
                 } else {
                     return defaultValue;
                 }
             }
-            // Fetch the actual value from the last part
-            if (value instanceof TomlParseResult) {
-                Object v = ((TomlParseResult) value).get(parts[parts.length - 1]);
-                if (v == null) return defaultValue;
-                return (T) v;
+            Object value = table.get(parts[parts.length - 1]);
+            if (value == null) return defaultValue;
+            // 自动将 Long 转为 Integer
+            if (defaultValue instanceof Integer && value instanceof Long) {
+                return (T) Integer.valueOf(((Long) value).intValue());
             }
-            return defaultValue;
+            return (T) value;
         } catch (Exception e) {
-            LOGGER.error("Error getting config value for path '" + path + "': " + e.getMessage());
+            LOGGER.severe("Error getting config value for path '" + path + "': " + e.getMessage());
             return defaultValue;
         }
     }
@@ -159,39 +161,65 @@ public class ConfigService {
      * @param override The overriding configuration
      * @return The merged configuration
      */
-    private static TomlParseResult mergeToml(TomlParseResult base, TomlParseResult override) {
-        if (override == null) {
-            return base;
+    private TomlParseResult mergeToml(TomlParseResult base, TomlParseResult override) {
+        if (base == null) return override;
+        if (override == null) return base;
+        Map<String, Object> merged = deepMerge(toMap(base), toMap(override));
+        String tomlString = mapToTomlString(merged);
+        return Toml.parse(tomlString);
+    }
+
+    // 将 TomlTable/TomlParseResult 转为 Map
+    private Map<String, Object> toMap(TomlTable table) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        for (String key : table.keySet()) {
+            Object value = table.get(key);
+            if (value instanceof TomlTable) {
+                map.put(key, toMap((TomlTable) value));
+            } else {
+                map.put(key, value);
+            }
         }
-        
-        // Create a new TOML table to hold the merged configuration
-        TomlTable merged = new TomlTable();
-        
-        // First add all values from the base configuration
-        base.getTable().forEach((key, value) -> {
-            if (value instanceof TomlTable) {
-                merged.put(key, new TomlTable());
-                ((TomlTable) value).forEach((subKey, subValue) -> 
-                    ((TomlTable) merged.get(key)).put(subKey, subValue));
+        return map;
+    }
+
+    // 递归合并两个 Map
+    private Map<String, Object> deepMerge(Map<String, Object> base, Map<String, Object> override) {
+        Map<String, Object> result = new LinkedHashMap<>(base);
+        for (Map.Entry<String, Object> entry : override.entrySet()) {
+            String key = entry.getKey();
+            Object value = entry.getValue();
+            if (value instanceof Map && base.get(key) instanceof Map) {
+                result.put(key, deepMerge((Map<String, Object>) base.get(key), (Map<String, Object>) value));
             } else {
-                merged.put(key, value);
+                result.put(key, value);
             }
-        });
-        
-        // Then override with values from the override configuration
-        override.getTable().forEach((key, value) -> {
-            if (value instanceof TomlTable) {
-                if (!merged.containsKey(key)) {
-                    merged.put(key, new TomlTable());
+        }
+        return result;
+    }
+
+    // Map 转 TOML 字符串（简单实现，适合本项目结构）
+    private String mapToTomlString(Map<String, Object> map) {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            if (entry.getValue() instanceof Map) {
+                sb.append("[").append(entry.getKey()).append("]\n");
+                Map<String, Object> subMap = (Map<String, Object>) entry.getValue();
+                for (Map.Entry<String, Object> subEntry : subMap.entrySet()) {
+                    sb.append(subEntry.getKey()).append(" = ").append(formatTomlValue(subEntry.getValue())).append("\n");
                 }
-                ((TomlTable) value).forEach((subKey, subValue) -> 
-                    ((TomlTable) merged.get(key)).put(subKey, subValue));
             } else {
-                merged.put(key, value);
+                sb.append(entry.getKey()).append(" = ").append(formatTomlValue(entry.getValue())).append("\n");
             }
-        });
-        
-        return new TomlParseResult(merged, null);
+        }
+        return sb.toString();
+    }
+
+    private String formatTomlValue(Object value) {
+        if (value instanceof String) {
+            return "\"" + value + "\"";
+        }
+        return String.valueOf(value);
     }
 
 

@@ -24,7 +24,7 @@ def main():
     # Create and start the client
     client = TicosClient(port=9999, save_mode = SaveMode.INTERNAL)
     
-    # client = TicosClient(port=9999, save_mode = SaveMode.EXTERNAL, tf_root_dir = '~/.config/ticos/sim_sd')
+    # client = TicosClient(port=9999, save_mode = SaveMode.EXTERNAL, tf_root_dir = '/Users/sawyer/.config/ticos/sim_sd')
     client.enable_local_storage()
     client.set_message_handler(message_handler)
     client.set_motion_handler(motion_handler)
