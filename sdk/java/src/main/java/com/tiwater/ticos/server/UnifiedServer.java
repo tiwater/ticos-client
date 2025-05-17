@@ -19,6 +19,7 @@ import org.xnio.OptionMap;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -124,18 +125,28 @@ public class UnifiedServer {
             
             // Get latest messages
             List<JSONObject> messages = storageService.getMessages(0, count, false);
+
+            // Reverse the array to get oldest first
+            Collections.reverse(messages);
             
             // Convert to response format
             JSONArray response = new JSONArray();
             for (JSONObject msg : messages) {
                 JSONObject item = new JSONObject();
                 item.put("role", msg.optString("role"));
-                item.put("content", msg.optString("content"));
+                
+                // Try to parse content as JSON
+                String content = msg.optString("content");
+                try {
+                    JSONObject contentJson = new JSONObject(content);
+                    item.put("content", contentJson);
+                } catch (Exception e) {
+                    // If parsing fails, use the original string
+                    item.put("content", content);
+                }
+                
                 response.put(item);
             }
-
-            // Reverse the array to get oldest first
-            Collections.reverse(response);
             
             sendJsonResponse(exchange, 200, response.toString());
         } else {

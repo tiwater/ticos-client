@@ -87,6 +87,13 @@ public class ConfigService {
             } else {
                 toml = userToml;
             }
+                
+            // Log the final merged configuration
+            StringBuilder configLog = new StringBuilder("Final merged configuration:\n");
+            TomlTable rootTable = toml.getTable("");
+            logTomlTable(configLog, rootTable, "  ");
+            LOGGER.info(configLog.toString());
+
 
             if (toml.hasErrors()) {
                 LOGGER.error("Error parsing config file:");
@@ -95,6 +102,22 @@ public class ConfigService {
         } catch (IOException e) {
             // throw new IOException("Failed to initialize config service: " + e.getMessage(), e);
             LOGGER.error("Failed to initialize config service: " + e.getMessage());
+        }
+    }
+
+
+    /**
+     * 递归打印 TomlTable 内容到 StringBuilder
+     */
+    private void logTomlTable(StringBuilder sb, TomlTable table, String prefix) {
+        for (String key : table.keySet()) {
+            Object value = table.get(key);
+            if (value instanceof TomlTable) {
+                sb.append(prefix).append(key).append(":\n");
+                logTomlTable(sb, (TomlTable) value, prefix + "  ");
+            } else {
+                sb.append(prefix).append(key).append(" = ").append(value).append("\n");
+            }
         }
     }
 
@@ -136,16 +159,41 @@ public class ConfigService {
      * @param override The overriding configuration
      * @return The merged configuration
      */
-    private TomlParseResult mergeToml(TomlParseResult base, TomlParseResult override) {
+    private static TomlParseResult mergeToml(TomlParseResult base, TomlParseResult override) {
         if (override == null) {
             return base;
         }
         
-        // For now, we'll just use the override config if it exists
-        // In the future, we can implement a more sophisticated merging strategy
-        // that preserves values from the base config that aren't in the override
-        return override;
+        // Create a new TOML table to hold the merged configuration
+        TomlTable merged = new TomlTable();
+        
+        // First add all values from the base configuration
+        base.getTable().forEach((key, value) -> {
+            if (value instanceof TomlTable) {
+                merged.put(key, new TomlTable());
+                ((TomlTable) value).forEach((subKey, subValue) -> 
+                    ((TomlTable) merged.get(key)).put(subKey, subValue));
+            } else {
+                merged.put(key, value);
+            }
+        });
+        
+        // Then override with values from the override configuration
+        override.getTable().forEach((key, value) -> {
+            if (value instanceof TomlTable) {
+                if (!merged.containsKey(key)) {
+                    merged.put(key, new TomlTable());
+                }
+                ((TomlTable) value).forEach((subKey, subValue) -> 
+                    ((TomlTable) merged.get(key)).put(subKey, subValue));
+            } else {
+                merged.put(key, value);
+            }
+        });
+        
+        return new TomlParseResult(merged, null);
     }
+
 
     public String getAgentId() {
         return get("agent_id", "");
