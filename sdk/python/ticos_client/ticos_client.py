@@ -214,13 +214,6 @@ class TicosClient(MessageCallbackInterface):
             if not isinstance(message, dict):
                 logger.error("Message must be a dictionary")
                 return False
-                
-            if "name" not in message:
-                logger.error("Message must contain a 'name' field")
-                return False
-                
-            if "timestamp" not in message["arguments"]:
-                message["arguments"]["timestamp"] = datetime.utcnow().isoformat()
             
             logger.debug(f"Sending message: {message}")
             
@@ -271,12 +264,14 @@ class TicosClient(MessageCallbackInterface):
                     # Create a copy of the message for storage
                     storage_message = message.copy()
                     
+                    # TODO: based on the message received to set the role
                     # Convert message to Message model
-                    role = MessageRole.USER if message.get('name') == 'test_message' else MessageRole.ASSISTANT
+                    role = MessageRole.ASSISTANT
                     
                     # Ensure storage message has an ID
                     if 'id' not in storage_message:
-                        storage_message['id'] = str(uuid.uuid4())
+                        # Use Unix timestamp as message ID
+                        storage_message['id'] = str(int(time.time()))
                     
                     # Store the original message content
                     msg = Message(
@@ -370,12 +365,8 @@ class TicosClient(MessageCallbackInterface):
             contents = []
             for msg in messages:
                 try:
-                    content = json.loads(msg["content"]) if isinstance(msg["content"], str) else msg["content"]
-                    if isinstance(content, dict) and "arguments" in content:
-                        if "content" in content["arguments"]:
-                            contents.append(f"{msg['role']}: {content['arguments']['content']}")
-                        elif "text" in content["arguments"]:
-                            contents.append(f"{msg['role']}: {content['arguments']['text']}")
+                    # Convert Message object to dictionary
+                    content = msg.content
                 except Exception as e:
                     logger.warning(f"Error processing message for summarization: {e}")
             
