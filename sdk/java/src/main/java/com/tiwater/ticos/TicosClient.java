@@ -331,7 +331,7 @@ public class TicosClient implements MessageCallbackInterface {
             String lastMemoryContent = latestMemory != null ? latestMemory.optString("content", "") : "";
             
             // Use HttpUtil to call the summarization API
-            String memoryContent = HttpUtil.summarizeConversation(messages, lastMemoryContent);
+            String memoryContent = HttpUtil.summarizeConversation(messages, lastMemoryContent, configService);
             
             if (memoryContent != null && !memoryContent.isEmpty()) {
                 // Save the new memory

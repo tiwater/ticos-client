@@ -333,7 +333,7 @@ class TicosClient(MessageCallbackInterface):
             last_memory_content = latest_memory["content"] if latest_memory else ""
             
             # Use HttpUtil to call the summarization API
-            memory_content = HttpUtil.summarize_conversation(reversed(messages), last_memory_content)
+            memory_content = HttpUtil.summarize_conversation(reversed(messages), last_memory_content, self.config_service)
             
             if memory_content:
                 # Save the new memory

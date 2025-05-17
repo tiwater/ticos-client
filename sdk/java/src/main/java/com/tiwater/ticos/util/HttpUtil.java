@@ -23,11 +23,8 @@ public class HttpUtil {
      * @param lastMemory Last memory content
      * @return Summary text or null if failed
      */
-    public static String summarizeConversation(List<JSONObject> conversationHistory, String lastMemory) {
+    public static String summarizeConversation(List<JSONObject> conversationHistory, String lastMemory, ConfigService configService) {
         try {
-            // Create a ConfigService instance
-            ConfigService configService = new ConfigService(null, null);
-            
             String apiUrl = "https://" + configService.getApiHost() + "/summarize";
             String apiKey = configService.getApiKey();
             

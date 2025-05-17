@@ -11,21 +11,19 @@ class HttpUtil:
     """Utility class for making HTTP requests"""
     
     @staticmethod
-    def summarize_conversation(conversation_history: List[Dict[str, Any]], last_memory: str) -> str:
+    def summarize_conversation(conversation_history: List[Dict[str, Any]], last_memory: str, config_service: ConfigService) -> str:
         """
         Send a POST request to the summarization API
         
         Args:
             conversation_history: List of conversation messages
             last_memory: Last memory content
+            config_service: ConfigService instance to use for API configuration
             
         Returns:
             Summary text or None if failed
         """
         try:
-            # Create a ConfigService instance
-            config_service = ConfigService(None, None)
-            
             api_url = f"https://{config_service.get_api_host()}/summarize"
             api_key = config_service.get_api_key()
             
