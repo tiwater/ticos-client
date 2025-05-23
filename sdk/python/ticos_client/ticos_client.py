@@ -26,18 +26,24 @@ class TicosClient(MessageCallbackInterface):
     along with message and memory storage capabilities.
     """
     
-    def __init__(self, port: int = 9999, save_mode: SaveMode = SaveMode.INTERNAL, tf_root_dir: Optional[str] = None):
+    def __init__(self, port: int = 9999, save_mode: SaveMode = SaveMode.INTERNAL, tf_root_dir: str = None):
         """
         Initialize the TicosClient.
         
         Args:
-            port: The port number to run the server on (default: 9999)
-            save_mode: The storage mode (internal or external) (default: internal)
-            tf_root_dir: The root directory of the TF card, or None if using internal storage (default: None)
+            port: The port number for the WebSocket server
+            save_mode: The save mode for storage (INTERNAL or EXTERNAL)
+            tf_root_dir: The root directory of the TF card for external storage
         """
         self.port = port
         self.save_mode = save_mode
-        self.tf_root_dir = tf_root_dir
+        if save_mode == SaveMode.EXTERNAL:
+            if tf_root_dir:
+                self.tf_root_dir = tf_root_dir
+            else:
+                self.tf_root_dir = find_tf_root_directory()
+        else:
+            self.tf_root_dir = tf_root_dir
         self.server: Optional[UnifiedServer] = None
         self.server_thread: Optional[threading.Thread] = None
         self.running = False
@@ -45,12 +51,31 @@ class TicosClient(MessageCallbackInterface):
         self.message_handler: Optional[Callable[[Dict[str, Any]], None]] = None
         self.motion_handler: Optional[Callable[[Dict[str, Any]], None]] = None
         self.emotion_handler: Optional[Callable[[Dict[str, Any]], None]] = None
+        self.function_call_handler: Optional[Callable[[str, Dict[str, Any]], None]] = None
         self.message_counter = 0  # Add message counter
+        self._last_message_id = 0  # Track the last used message ID
         
         # Initialize config service
-        self.config_service = ConfigService(save_mode, tf_root_dir)
+        self.config_service = ConfigService(save_mode, self.tf_root_dir)
         self.memory_rounds = self.config_service.get_memory_rounds()
         self.date_format = "%Y-%m-%d %H:%M:%S"
+        
+    def _generate_message_id(self) -> str:
+        """
+        Generate a unique message ID that is always increasing.
+        
+        Returns:
+            str: A string representation of the message ID
+        """
+        current_id = int(time.time())
+        
+        # If current_id is less than or equal to the last used ID, increment the last ID
+        if current_id <= self._last_message_id:
+            self._last_message_id += 1
+        else:
+            self._last_message_id = current_id
+            
+        return str(self._last_message_id)
 
     def enable_local_storage(self, storage_service: Optional[StorageService] = None):
         """
@@ -64,11 +89,7 @@ class TicosClient(MessageCallbackInterface):
             storage_service = SQLiteStorageService()
         
         # Set storage directory based on save mode
-        if self.save_mode == SaveMode.EXTERNAL and self.tf_root_dir:
-            storage_service.set_store_root_dir(self.tf_root_dir)
-        else:
-            # For internal storage, use user's home directory
-            storage_service.set_store_root_dir(None)  # None will make SQLiteStorageService use home directory
+        storage_service.set_store_root_dir(self.tf_root_dir)
         
         try:
             storage_service.initialize()
@@ -263,6 +284,7 @@ class TicosClient(MessageCallbackInterface):
             # Save the message to local storage if enabled
             if self.storage:
                 try:
+                    text_message = True
                     # Process different message types
                     msg_type = message.get('type')
                     
@@ -276,7 +298,7 @@ class TicosClient(MessageCallbackInterface):
                                 if content.get('type') == 'input_audio':
                                     # Save as user message with empty content (will be updated later)
                                     msg = Message(
-                                        id=str(int(time.time())),
+                                        id=self._generate_message_id(),
                                         role=MessageRole.USER,
                                         content="",  # Empty content, will be updated when transcription arrives
                                         item_id=item.get('id'),  # Save the item_id for later reference
@@ -292,15 +314,15 @@ class TicosClient(MessageCallbackInterface):
                         transcript = message.get('transcript', '')
                         
                         if item_id:
-                            # Find the message with this item_id
-                            messages = self.storage.get_messages(0, 100, True)  # Get recent messages
-                            for msg in messages:
-                                if msg.item_id == item_id:
-                                    # Update the message with the transcript
-                                    msg.content = transcript
-                                    self.storage.update_message(msg.id, msg)
-                                    logger.debug(f"Updated user message with transcript for item_id: {item_id}")
-                                    break
+                            # Find the message with this item_id using the new method
+                            msg = self.storage.get_message_by_item_id(item_id)
+                            if msg:
+                                # Update the message with the transcript
+                                msg.content = transcript
+                                self.storage.update_message(msg.id, msg)
+                                logger.debug(f"Updated user message with transcript for item_id: {item_id}")
+                            else:
+                                logger.warning(f"No message found with item_id: {item_id} for transcript update")
                     
                     # Handle response.done - assistant message
                     elif msg_type == 'response.done':
@@ -314,7 +336,7 @@ class TicosClient(MessageCallbackInterface):
                                     if content.get('type') == 'audio':
                                         # Save as assistant message
                                         msg = Message(
-                                            id=str(int(time.time())),
+                                            id=self._generate_message_id(),
                                             role=MessageRole.ASSISTANT,
                                             content=content.get('transcript', ''),
                                             item_id=output_item.get('id'),  # Save the item_id
@@ -324,30 +346,16 @@ class TicosClient(MessageCallbackInterface):
                                         self.storage.save_message(msg)
                                         break
                     
-                    # For other message types, store the original message content
+                    # For other message types, don't store
                     else:
-                        # Create a copy of the message for storage
-                        storage_message = message.copy()
-                        
-                        # Ensure storage message has an ID
-                        if 'id' not in storage_message:
-                            # Use Unix timestamp as message ID
-                            storage_message['id'] = str(int(time.time()))
-                        
-                        # Store the original message content
-                        msg = Message(
-                            id=storage_message['id'],
-                            role=MessageRole.ASSISTANT,  # Default role
-                            content=json.dumps(message),
-                            datetime=datetime.now().strftime(self.date_format)
-                        )
-                        self.storage.save_message(msg)
+                       text_message = False
                     
                     # Check if we need to generate a memory
-                    self.message_counter += 1
-                    if self.message_counter >= self.memory_rounds:
-                        self.generate_memory()
-                        self.message_counter = 0
+                    if text_message and not msg_type == 'conversation.item.created':
+                        self.message_counter += 1
+                        if self.message_counter >= self.memory_rounds:
+                            self.generate_memory()
+                            self.message_counter = 0
                 except Exception as e:
                     logger.error(f"Failed to save message to storage: {e}", exc_info=True)   
 
@@ -389,7 +397,6 @@ class TicosClient(MessageCallbackInterface):
                     if handlers_called:
                         overall_handlers_called = True
                 
-            logger.warning(f"No handler for message: {message.get('type')}")
             return overall_handlers_called
             
         except Exception as e:

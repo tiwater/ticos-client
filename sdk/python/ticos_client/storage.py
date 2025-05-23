@@ -52,6 +52,11 @@ class StorageService(ABC):
     def get_messages(self, offset: int = 0, limit: int = 100, desc: bool = True) -> list[Message]:
         """Get a list of messages from storage."""
         pass
+        
+    @abstractmethod
+    def get_message_by_item_id(self, item_id: str) -> Optional[Message]:
+        """Get a message by its item_id."""
+        pass
     
     @abstractmethod
     def save_memory(self, memory: Memory) -> bool:
@@ -251,6 +256,29 @@ class SQLiteStorageService(StorageService):
         except Exception as e:
             logger.error(f"Failed to get messages: {e}")
             return []
+            
+    def get_message_by_item_id(self, item_id: str) -> Optional[Message]:
+        """Get a message by its item_id"""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    'SELECT id, role, content, item_id, datetime FROM messages WHERE item_id = ?',
+                    (item_id,)
+                )
+                row = cursor.fetchone()
+                if row:
+                    return Message(
+                        id=row[0],
+                        role=MessageRole(row[1]),
+                        content=row[2],
+                        item_id=row[3],
+                        datetime=row[4]
+                    )
+                return None
+        except Exception as e:
+            logger.error(f"Failed to get message by item_id: {e}")
+            return None
 
     def save_memory(self, memory: Memory) -> bool:
         """Save a memory to storage"""
