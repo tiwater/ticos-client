@@ -181,6 +181,8 @@ For example, the following JSON object is a valid motion message:
 2. Install development dependencies:
    ```bash
    pip install -r requirements-dev.txt
+   Or
+   pip install -r requirements-dev.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
    ```
 3. Test:
    ```bash
