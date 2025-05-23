@@ -106,16 +106,72 @@ class UnifiedServer:
             
             try:
                 while True:
-                    data = await websocket.receive_text()
                     try:
-                        message = json.loads(data)
-                        await self._handle_websocket_message(message, websocket)
-                    except json.JSONDecodeError:
-                        logger.error("Received invalid JSON")
+                        # Handle different message types
+                        message = await websocket.receive()
+                        logger.debug(f"[WebSocket] Received message: {json.dumps(message, default=str, ensure_ascii=False)}")
+                        
+                        # Handle text messages (JSON)
+                        if "text" in message:
+                            try:
+                                data = json.loads(message["text"])
+                                # logger.debug(f"[WebSocket] Parsed message data: {json.dumps(data, default=str, ensure_ascii=False, indent=2)}")
+                                await self._handle_websocket_message(data, websocket)
+                            except json.JSONDecodeError as je:
+                                logger.error(f"[WebSocket] Failed to parse JSON: {message['text']}", exc_info=True)
+                            except Exception as e:
+                                logger.error(f"[WebSocket] Error handling text message: {str(e)}", exc_info=True)
+                        # Handle binary messages containing JSON data
+                        elif "bytes" in message:
+                            try:
+                                # Convert bytes to string and clean up the binary string representation
+                                binary_data = message['bytes']
+                                
+                                # Handle different binary message formats
+                                if isinstance(binary_data, bytes):
+                                    # If it's actual bytes, decode it
+                                    try:
+                                        # Try UTF-8 decoding first
+                                        json_str = binary_data.decode('utf-8')
+                                    except UnicodeDecodeError:
+                                        # If UTF-8 fails, try with error handling
+                                        json_str = binary_data.decode('utf-8', errors='replace')
+                                        
+                                    # Clean up common binary string artifacts
+                                    json_str = json_str.strip("'")
+                                    # json_str = json_str.replace('\\"', '"')
+                                    
+                                    try:
+                                        # Try to parse the JSON
+                                        data = json.loads(json_str)
+                                        # logger.debug(f"[WebSocket] Parsed binary JSON: {json.dumps(data, ensure_ascii=False, indent=2)}")
+                                        await self._handle_websocket_message(data, websocket)
+                                    except json.JSONDecodeError as je:
+                                        logger.error(f"[WebSocket] Failed to parse binary JSON: {json_str}", exc_info=True)
+                                    except Exception as e:
+                                        logger.error(f"[WebSocket] Error processing binary message: {str(e)}", exc_info=True)
+                                else:
+                                    logger.warning(f"[WebSocket] Unexpected binary message format: {type(binary_data)}")
+                                    
+                            except Exception as e:
+                                logger.error(f"[WebSocket] Error processing binary message: {str(e)}", exc_info=True)
+                        # Handle close messages
+                        elif message.get("type") == "websocket.disconnect":
+                            logger.info("[WebSocket] Client disconnected")
+                            break
+                        else:
+                            logger.warning(f"[WebSocket] Unhandled message type: {message.keys()}")
+                            
+                    except WebSocketDisconnect as wd:
+                        logger.info(f"[WebSocket] Client disconnected: {str(wd)}")
+                        break
                     except Exception as e:
-                        logger.error(f"Error processing WebSocket message: {e}")
+                        logger.error(f"[WebSocket] Unexpected error: {str(e)}", exc_info=True)
+                        break
             except WebSocketDisconnect:
                 logger.info("WebSocket client disconnected")
+            except Exception as e:
+                logger.error(f"WebSocket error: {e}")
             finally:
                 await self._unregister_websocket(websocket)
     
