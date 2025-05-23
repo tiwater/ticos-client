@@ -52,6 +52,7 @@ class TicosClient(MessageCallbackInterface):
         self.motion_handler: Optional[Callable[[Dict[str, Any]], None]] = None
         self.emotion_handler: Optional[Callable[[Dict[str, Any]], None]] = None
         self.function_call_handler: Optional[Callable[[str, Dict[str, Any]], None]] = None
+        self.conversation_handler: Optional[Callable[[str, str, str], None]] = None
         self.message_counter = 0  # Add message counter
         self._last_message_id = 0  # Track the last used message ID
         
@@ -135,6 +136,17 @@ class TicosClient(MessageCallbackInterface):
         if not callable(handler):
             raise ValueError("Handler must be callable")
         self.function_call_handler = handler
+        
+    def set_conversation_handler(self, handler: Callable[[str, str, str], None]) -> None:
+        """
+        Set the conversation handler
+        
+        Args:
+            handler: Function that takes message_id (item_id), role, and content as parameters
+        """
+        if not callable(handler):
+            raise ValueError("Handler must be callable")
+        self.conversation_handler = handler
 
     def start(self):
         """
@@ -306,6 +318,10 @@ class TicosClient(MessageCallbackInterface):
                                     )
                                     logger.debug(f"Saving initial user message with item_id: {item.get('id')}")
                                     self.storage.save_message(msg)
+                                    
+                                    # Call conversation handler if available
+                                    if hasattr(self, 'conversation_handler') and self.conversation_handler:
+                                        self.conversation_handler(item.get('id'), MessageRole.USER, "")
                                     break
                     
                     # Handle conversation.item.input_audio_transcription.completed - update user message
@@ -321,6 +337,10 @@ class TicosClient(MessageCallbackInterface):
                                 msg.content = transcript
                                 self.storage.update_message(msg.id, msg)
                                 logger.debug(f"Updated user message with transcript for item_id: {item_id}")
+                                
+                                # Call conversation handler if available
+                                if hasattr(self, 'conversation_handler') and self.conversation_handler:
+                                    self.conversation_handler(item_id, MessageRole.USER, transcript)
                             else:
                                 logger.warning(f"No message found with item_id: {item_id} for transcript update")
                     
@@ -346,10 +366,22 @@ class TicosClient(MessageCallbackInterface):
                                         self.storage.save_message(msg)
                                         break
                     
+                    # Handle response.audio_transcript.delta - assistant message delta
+                    elif msg_type == 'response.audio_transcript.delta':
+                        item_id = message.get('item_id')
+                        delta = message.get('delta', '')
+                        
+                        if item_id and delta and hasattr(self, 'conversation_handler') and self.conversation_handler:
+                            # Call conversation handler with fixed role "assistant" and delta as content
+                            self.conversation_handler(item_id, MessageRole.ASSISTANT, delta)
+                            # logger.debug(f"Called conversation handler for audio transcript delta with item_id: {item_id}")
+                        
+                        text_message = False
+                    
                     # For other message types, don't store
                     else:
-                       text_message = False
-                    
+                        text_message = False
+                        
                     # Check if we need to generate a memory
                     if text_message and not msg_type == 'conversation.item.created':
                         self.message_counter += 1
@@ -357,7 +389,7 @@ class TicosClient(MessageCallbackInterface):
                             self.generate_memory()
                             self.message_counter = 0
                 except Exception as e:
-                    logger.error(f"Failed to save message to storage: {e}", exc_info=True)   
+                    logger.error(f"Failed to save message to storage: {e}", exc_info=True)
 
             # Handle different function calls
             overall_handlers_called = False
