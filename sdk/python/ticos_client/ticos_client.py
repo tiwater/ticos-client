@@ -101,17 +101,19 @@ class TicosClient(MessageCallbackInterface):
             raise ValueError("Handler must be callable")
         self.motion_handler = handler
     
-    def set_emotion_handler(self, handler: Callable[[Dict[str, Any]], None]):
-        """
-        Set the emotion handler.
+    def set_emotion_handler(self, handler: Callable[[Dict[str, Any]], None]) -> None:
+        """Set the emotion handler function"""
+        self.emotion_handler = handler
+        
+    def set_function_call_handler(self, handler: Callable[[str, Dict[str, Any]], None]) -> None:
+        """Set the generic function call handler
         
         Args:
-            handler: A callable that takes a dictionary of parameters
+            handler: Function that takes function name and arguments as parameters
         """
         if not callable(handler):
             raise ValueError("Handler must be callable")
-        self.emotion_handler = handler
-        logger.debug("Emotion handler set")
+        self.function_call_handler = handler
 
     def start(self):
         """
@@ -282,32 +284,54 @@ class TicosClient(MessageCallbackInterface):
                     )
                     self.storage.save_message(msg)
                     
-                    # Check if we need to generate a memory
+                    # # Check if we need to generate a memory
                     self.message_counter += 1
                     if self.message_counter >= self.memory_rounds:
                         self.generate_memory()
                         self.message_counter = 0
                 except Exception as e:
-                    logger.error(f"Failed to save message to storage: {e}")
+                    logger.error(f"Failed to save message to storage: {e}")   
+
+            # Handle different function calls
+            overall_handlers_called = False
             
-            # Call the appropriate handler based on message type
-            msg_name = message.get('name')
-            args = message.get('arguments', {})
-            
-            if msg_name == "motion" and hasattr(self, 'motion_handler') and self.motion_handler:
-                self.motion_handler(args)
-                return True
-                
-            if msg_name == "emotion" and hasattr(self, 'emotion_handler') and self.emotion_handler:
-                self.emotion_handler(args)
-                return True
-                
+            # Handle base message types with the message handler
             if hasattr(self, 'message_handler') and self.message_handler:
                 self.message_handler(message)
-                return True
+                overall_handlers_called = True
+            
+            # Handle function call responses
+            if message.get('type') == 'response.output_item.done':
+                item = message.get('item', {})
+                if item.get('type') == 'function_call':
+                    function_name = item.get('name', '')
+                    try:
+                        # Try to parse arguments as JSON, fallback to empty dict if invalid
+                        args = json.loads(item.get('arguments', '{}'))
+                    except json.JSONDecodeError:
+                        args = {}
+                        logger.warning(f"Invalid JSON arguments in function call: {item.get('arguments')}")
+
+                    handlers_called = False
+                    
+                    if function_name in ['motion', 'motion_and_emotion'] and hasattr(self, 'motion_handler') and self.motion_handler:
+                        self.motion_handler(args)
+                        handlers_called = True
+                        
+                    if function_name in ['emotion', 'motion_and_emotion'] and hasattr(self, 'emotion_handler') and self.emotion_handler:
+                        self.emotion_handler(args)
+                        handlers_called = True
+                        
+                    # Handle other function calls with the generic function call handler
+                    if not handlers_called and hasattr(self, 'function_call_handler') and self.function_call_handler:
+                        self.function_call_handler(function_name, args)
+                        handlers_called = True
+
+                    if handlers_called:
+                        overall_handlers_called = True
                 
-            logger.warning(f"No handler for message: {msg_name}")
-            return False
+            logger.warning(f"No handler for message: {message.get('type')}")
+            return overall_handlers_called
             
         except Exception as e:
             logger.error(f"Error handling message: {e}")

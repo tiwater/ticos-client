@@ -20,6 +20,9 @@ def motion_handler(parameters):
 def emotion_handler(parameters):
     logger.info(f"Received emotion command with parameters: {parameters}")
 
+def function_call_handler(name, parameters):
+    logger.info(f"Received function call '{name}' with parameters: {parameters}")
+
 def main():
     # Create and start the client
     client = TicosClient(port=9999, save_mode = SaveMode.INTERNAL)
@@ -29,6 +32,7 @@ def main():
     client.set_message_handler(message_handler)
     client.set_motion_handler(motion_handler)
     client.set_emotion_handler(emotion_handler)
+    client.set_function_call_handler(function_call_handler)
     
     if not client.start():
         logger.error("Failed to start client")

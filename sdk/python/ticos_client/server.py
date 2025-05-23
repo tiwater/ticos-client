@@ -40,6 +40,7 @@ class UnifiedServer:
         self._server = None
         self._should_exit = False
         self.message_callback = message_callback
+        self._last_audio_delta_item_id = None  # Track last processed audio delta item_id
         
         # Ensure message_callback is properly initialized
         if not isinstance(message_callback, MessageCallbackInterface):
@@ -115,7 +116,7 @@ class UnifiedServer:
                         if "text" in message:
                             try:
                                 data = json.loads(message["text"])
-                                # logger.debug(f"[WebSocket] Parsed message data: {json.dumps(data, default=str, ensure_ascii=False, indent=2)}")
+                                logger.debug(f"[WebSocket] Parsed message data: {json.dumps(data, default=str, ensure_ascii=False, indent=2)}")
                                 await self._handle_websocket_message(data, websocket)
                             except json.JSONDecodeError as je:
                                 logger.error(f"[WebSocket] Failed to parse JSON: {message['text']}", exc_info=True)
@@ -139,12 +140,11 @@ class UnifiedServer:
                                         
                                     # Clean up common binary string artifacts
                                     json_str = json_str.strip("'")
-                                    # json_str = json_str.replace('\\"', '"')
                                     
                                     try:
                                         # Try to parse the JSON
                                         data = json.loads(json_str)
-                                        # logger.debug(f"[WebSocket] Parsed binary JSON: {json.dumps(data, ensure_ascii=False, indent=2)}")
+                                        logger.debug(f"[WebSocket] Parsed binary JSON: {json.dumps(data, ensure_ascii=False, indent=2)}")
                                         await self._handle_websocket_message(data, websocket)
                                     except json.JSONDecodeError as je:
                                         logger.error(f"[WebSocket] Failed to parse binary JSON: {json_str}", exc_info=True)
@@ -188,24 +188,76 @@ class UnifiedServer:
                 self.websocket_connections.remove(websocket)
                 logger.info(f"WebSocket connection closed. Remaining connections: {len(self.websocket_connections)}")
     
+    def _should_process_message(self, message: Dict[str, Any]) -> bool:
+        """
+        Determine if a message should be processed based on its type and content.
+        
+        Args:
+            message: The incoming message
+            
+        Returns:
+            bool: True if the message should be processed, False otherwise
+        """
+        msg_type = message.get('type')
+        if not msg_type:
+            return False
+            
+        # Always process these message types
+        allowed_types = {
+            'conversation.item.created',
+            'response.created',
+            'conversation.item.input_audio_transcription.completed',
+            'response.output_item.done',
+            'response.audio_transcript.delta',
+            'response.done'
+        }
+        
+        if msg_type in allowed_types:
+            return True
+            
+        # Special handling for audio.delta messages
+        if msg_type == 'response.audio.delta':
+            item_id = message.get('item_id')
+            if not item_id:
+                return False
+                
+            # Only process the first audio.delta for each item_id
+            if item_id == self._last_audio_delta_item_id:
+                return False
+                
+            # Update the last processed item_id
+            self._last_audio_delta_item_id = item_id
+            return True
+            
+        return False
+    
     async def _handle_websocket_message(self, message: Dict[str, Any], websocket: WebSocket):
-        """Handle incoming WebSocket message"""
+        """
+        Handle incoming WebSocket message with filtering.
+        
+        Only processes specific message types and handles audio delta deduplication.
+        """
         try:
             if not isinstance(message, dict):
                 logger.warning(f"Invalid message type: {type(message)}")
+                return False
+                
+            # Check if we should process this message
+            if not self._should_process_message(message):
                 return False
                 
             # Call the registered message callback
             if self.message_callback:
                 handled = self.message_callback.handle_message(message)
                 if not handled:
-                    logger.warning(f"Message not handled: {message.get('name')}")
+                    logger.warning(f"Message not handled: {message.get('type')}")
                 return handled
                 
             logger.warning("No message callback registered")
             return False
+            
         except Exception as e:
-            logger.error(f"Error handling message: {e}")
+            logger.error(f"Error handling message: {str(e)}", exc_info=True)
             return False
             
     
