@@ -12,6 +12,7 @@ class Message(BaseModel):
     id: Optional[str] = None
     role: MessageRole
     content: str
+    item_id: Optional[str] = None  # Added item_id field for tracking conversation items
     datetime: str = Field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 class MemoryType(str, Enum):

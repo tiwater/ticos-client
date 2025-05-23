@@ -263,34 +263,93 @@ class TicosClient(MessageCallbackInterface):
             # Save the message to local storage if enabled
             if self.storage:
                 try:
-                    # Create a copy of the message for storage
-                    storage_message = message.copy()
+                    # Process different message types
+                    msg_type = message.get('type')
                     
-                    # TODO: based on the message received to set the role
-                    # Convert message to Message model
-                    role = MessageRole.ASSISTANT
+                    # Handle conversation.item.created - user message
+                    if msg_type == 'conversation.item.created':
+                        item = message.get('item', {})
+                        if item.get('type') == 'message' and item.get('role') == 'user':
+                            # Check if content contains input_audio
+                            content_list = item.get('content', [])
+                            for content in content_list:
+                                if content.get('type') == 'input_audio':
+                                    # Save as user message with empty content (will be updated later)
+                                    msg = Message(
+                                        id=str(int(time.time())),
+                                        role=MessageRole.USER,
+                                        content="",  # Empty content, will be updated when transcription arrives
+                                        item_id=item.get('id'),  # Save the item_id for later reference
+                                        datetime=datetime.now().strftime(self.date_format)
+                                    )
+                                    logger.debug(f"Saving initial user message with item_id: {item.get('id')}")
+                                    self.storage.save_message(msg)
+                                    break
                     
-                    # Ensure storage message has an ID
-                    if 'id' not in storage_message:
-                        # Use Unix timestamp as message ID
-                        storage_message['id'] = str(int(time.time()))
+                    # Handle conversation.item.input_audio_transcription.completed - update user message
+                    elif msg_type == 'conversation.item.input_audio_transcription.completed':
+                        item_id = message.get('item_id')
+                        transcript = message.get('transcript', '')
+                        
+                        if item_id:
+                            # Find the message with this item_id
+                            messages = self.storage.get_messages(0, 100, True)  # Get recent messages
+                            for msg in messages:
+                                if msg.item_id == item_id:
+                                    # Update the message with the transcript
+                                    msg.content = transcript
+                                    self.storage.update_message(msg.id, msg)
+                                    logger.debug(f"Updated user message with transcript for item_id: {item_id}")
+                                    break
                     
-                    # Store the original message content
-                    msg = Message(
-                        id=storage_message['id'],
-                        role=role,
-                        content=json.dumps(message),
-                        datetime=datetime.now().strftime(self.date_format)
-                    )
-                    self.storage.save_message(msg)
+                    # Handle response.done - assistant message
+                    elif msg_type == 'response.done':
+                        response = message.get('response', {})
+                        output = response.get('output', [])
+                        
+                        for output_item in output:
+                            if output_item.get('role') == 'assistant' and output_item.get('type') == 'message':
+                                content_list = output_item.get('content', [])
+                                for content in content_list:
+                                    if content.get('type') == 'audio':
+                                        # Save as assistant message
+                                        msg = Message(
+                                            id=str(int(time.time())),
+                                            role=MessageRole.ASSISTANT,
+                                            content=content.get('transcript', ''),
+                                            item_id=output_item.get('id'),  # Save the item_id
+                                            datetime=datetime.now().strftime(self.date_format)
+                                        )
+                                        logger.debug(f"Saving assistant message with item_id: {output_item.get('id')}")
+                                        self.storage.save_message(msg)
+                                        break
                     
-                    # # Check if we need to generate a memory
+                    # For other message types, store the original message content
+                    else:
+                        # Create a copy of the message for storage
+                        storage_message = message.copy()
+                        
+                        # Ensure storage message has an ID
+                        if 'id' not in storage_message:
+                            # Use Unix timestamp as message ID
+                            storage_message['id'] = str(int(time.time()))
+                        
+                        # Store the original message content
+                        msg = Message(
+                            id=storage_message['id'],
+                            role=MessageRole.ASSISTANT,  # Default role
+                            content=json.dumps(message),
+                            datetime=datetime.now().strftime(self.date_format)
+                        )
+                        self.storage.save_message(msg)
+                    
+                    # Check if we need to generate a memory
                     self.message_counter += 1
                     if self.message_counter >= self.memory_rounds:
                         self.generate_memory()
                         self.message_counter = 0
                 except Exception as e:
-                    logger.error(f"Failed to save message to storage: {e}")   
+                    logger.error(f"Failed to save message to storage: {e}", exc_info=True)   
 
             # Handle different function calls
             overall_handlers_called = False

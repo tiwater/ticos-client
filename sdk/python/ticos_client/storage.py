@@ -49,7 +49,7 @@ class StorageService(ABC):
         pass
     
     @abstractmethod
-    def get_messages(self, offset: int = 0, limit: int = 100) -> list[Message]:
+    def get_messages(self, offset: int = 0, limit: int = 100, desc: bool = True) -> list[Message]:
         """Get a list of messages from storage."""
         pass
     
@@ -118,6 +118,7 @@ class SQLiteStorageService(StorageService):
                         id TEXT PRIMARY KEY,
                         role TEXT NOT NULL,
                         content TEXT NOT NULL,
+                        item_id TEXT,
                         datetime TEXT NOT NULL
                     )
                 ''')
@@ -148,13 +149,14 @@ class SQLiteStorageService(StorageService):
                 cursor = conn.cursor()
                 cursor.execute(
                     '''
-                    INSERT OR REPLACE INTO messages (id, role, content, datetime)
-                    VALUES (?, ?, ?, ?)
+                    INSERT OR REPLACE INTO messages (id, role, content, item_id, datetime)
+                    VALUES (?, ?, ?, ?, ?)
                     ''',
                     (
                         message.id,
                         message.role.value,
                         message.content,
+                        message.item_id,
                         message.datetime
                     )
                 )
@@ -164,23 +166,24 @@ class SQLiteStorageService(StorageService):
             logger.error(f"Failed to save message: {e}")
             return False
     
-    def get_message(self, message_id: str) -> Optional[Dict[str, Any]]:
+    def get_message(self, message_id: str) -> Optional[Message]:
         """Get a message by ID"""
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    'SELECT id, role, content, datetime FROM messages WHERE id = ?',
+                    'SELECT id, role, content, item_id, datetime FROM messages WHERE id = ?',
                     (message_id,)
                 )
                 row = cursor.fetchone()
                 if row:
-                    return {
-                        'id': row[0],
-                        'role': row[1],
-                        'content': row[2],
-                        'datetime': row[3]
-                    }
+                    return Message(
+                        id=row[0],
+                        role=MessageRole(row[1]),
+                        content=row[2],
+                        item_id=row[3],
+                        datetime=row[4]
+                    )
                 return None
         except Exception as e:
             logger.error(f"Failed to get message: {e}")
@@ -193,12 +196,13 @@ class SQLiteStorageService(StorageService):
                 cursor = conn.cursor()
                 cursor.execute(
                     '''
-                    UPDATE messages SET role = ?, content = ?, datetime = ?
+                    UPDATE messages SET role = ?, content = ?, item_id = ?, datetime = ?
                     WHERE id = ?
                     ''',
                     (
                         message.role.value,
                         message.content,
+                        message.item_id,
                         message.datetime,
                         message_id
                     )
@@ -231,18 +235,18 @@ class SQLiteStorageService(StorageService):
                 cursor = conn.cursor()
                 order = "DESC" if desc else "ASC"
                 cursor.execute(
-                    f'SELECT id, role, content, datetime FROM messages ORDER BY datetime {order} LIMIT ? OFFSET ?',
+                    f'SELECT id, role, content, item_id, datetime FROM messages ORDER BY datetime {order} LIMIT ? OFFSET ?',
                     (limit, offset)
                 )
-                rows = cursor.fetchall()
                 return [
                     Message(
                         id=row[0],
                         role=MessageRole(row[1]),
                         content=row[2],
-                        datetime=row[3]
+                        item_id=row[3],
+                        datetime=row[4]
                     )
-                    for row in rows
+                    for row in cursor.fetchall()
                 ]
         except Exception as e:
             logger.error(f"Failed to get messages: {e}")
