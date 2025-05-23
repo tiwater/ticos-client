@@ -54,6 +54,7 @@ def main():
         # Keep the main thread running and do your own business
         while True:
             # Print log every 30 seconds
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
             logger.info(f"I'm still alive at {current_time}")
             time.sleep(30)
