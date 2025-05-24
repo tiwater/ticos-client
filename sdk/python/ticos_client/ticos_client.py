@@ -56,6 +56,13 @@ class TicosClient(MessageCallbackInterface):
         self.message_counter = 0  # Add message counter
         self._last_message_id = 0  # Track the last used message ID
         
+        # Cache for audio transcript delta messages
+        self._audio_transcript_cache = {
+            "item_id": None,
+            "message": None,
+            "content": ""
+        }
+        
         # Initialize config service
         self.config_service = ConfigService(save_mode, self.tf_root_dir)
         self.memory_rounds = self.config_service.get_memory_rounds()
@@ -77,6 +84,25 @@ class TicosClient(MessageCallbackInterface):
             self._last_message_id = current_id
             
         return str(self._last_message_id)
+        
+    def _save_cached_audio_transcript(self) -> None:
+        """
+        Save the cached audio transcript message to storage and reset the cache.
+        """
+        if self._audio_transcript_cache["message"] and self._audio_transcript_cache["content"]:
+            # Update the message content with accumulated delta
+            self._audio_transcript_cache["message"].content = self._audio_transcript_cache["content"]
+            
+            # Save to storage
+            self.storage.save_message(self._audio_transcript_cache["message"])
+            logger.debug(f"Saved accumulated audio transcript message with item_id: {self._audio_transcript_cache['item_id']}")
+            
+            # Reset cache
+            self._audio_transcript_cache = {
+                "item_id": None,
+                "message": None,
+                "content": ""
+            }
 
     def enable_local_storage(self, storage_service: Optional[StorageService] = None):
         """
@@ -296,7 +322,7 @@ class TicosClient(MessageCallbackInterface):
             # Save the message to local storage if enabled
             if self.storage:
                 try:
-                    text_message = True
+                    text_message = False
                     # Process different message types
                     msg_type = message.get('type')
                     
@@ -336,6 +362,7 @@ class TicosClient(MessageCallbackInterface):
                                 # Update the message with the transcript
                                 msg.content = transcript
                                 self.storage.update_message(msg.id, msg)
+                                text_message = True
                                 logger.debug(f"Updated user message with transcript for item_id: {item_id}")
                                 
                                 # Call conversation handler if available
@@ -346,37 +373,44 @@ class TicosClient(MessageCallbackInterface):
                     
                     # Handle response.done - assistant message
                     elif msg_type == 'response.done':
-                        response = message.get('response', {})
-                        output = response.get('output', [])
-                        
-                        for output_item in output:
-                            if output_item.get('role') == 'assistant' and output_item.get('type') == 'message':
-                                content_list = output_item.get('content', [])
-                                for content in content_list:
-                                    if content.get('type') == 'audio':
-                                        # Save as assistant message
-                                        msg = Message(
-                                            id=self._generate_message_id(),
-                                            role=MessageRole.ASSISTANT,
-                                            content=content.get('transcript', ''),
-                                            item_id=output_item.get('id'),  # Save the item_id
-                                            datetime=datetime.now().strftime(self.date_format)
-                                        )
-                                        logger.debug(f"Saving assistant message with item_id: {output_item.get('id')}")
-                                        self.storage.save_message(msg)
-                                        break
+                        # First, save any cached audio transcript message
+                        if self._audio_transcript_cache["item_id"] and self._audio_transcript_cache["message"]:
+                            self._save_cached_audio_transcript()
+                            text_message = True
                     
                     # Handle response.audio_transcript.delta - assistant message delta
                     elif msg_type == 'response.audio_transcript.delta':
                         item_id = message.get('item_id')
                         delta = message.get('delta', '')
-                        
-                        if item_id and delta and hasattr(self, 'conversation_handler') and self.conversation_handler:
-                            # Call conversation handler with fixed role "assistant" and delta as content
-                            self.conversation_handler(item_id, MessageRole.ASSISTANT, delta)
-                            # logger.debug(f"Called conversation handler for audio transcript delta with item_id: {item_id}")
-                        
                         text_message = False
+                        
+                        # Process only non-empty deltas
+                        if delta and item_id:
+                            # Call conversation handler if available
+                            if hasattr(self, 'conversation_handler') and self.conversation_handler:
+                                self.conversation_handler(item_id, MessageRole.ASSISTANT, delta)
+                            
+                            # Check if we need to save the previous cached message
+                            if self._audio_transcript_cache["item_id"] and self._audio_transcript_cache["item_id"] != item_id:
+                                # Save previous cached message before starting a new one
+                                self._save_cached_audio_transcript()
+                                text_message = True
+                            
+                            # Create a new message if this is the first delta for this item_id
+                            if not self._audio_transcript_cache["item_id"] or self._audio_transcript_cache["item_id"] != item_id:
+                                # This is the first delta for this item_id
+                                self._audio_transcript_cache["item_id"] = item_id
+                                self._audio_transcript_cache["message"] = Message(
+                                    id=self._generate_message_id(),
+                                    role=MessageRole.ASSISTANT,
+                                    content="",  # Will be updated when saving
+                                    item_id=item_id,
+                                    datetime=datetime.now().strftime(self.date_format)
+                                )
+                                self._audio_transcript_cache["content"] = delta
+                            else:
+                                # Append to existing content
+                                self._audio_transcript_cache["content"] += delta
                     
                     # For other message types, don't store
                     else:
