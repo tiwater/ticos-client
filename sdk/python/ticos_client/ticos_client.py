@@ -122,6 +122,7 @@ class TicosClient(MessageCallbackInterface):
             storage_service.initialize()
             self.storage = storage_service
             logger.info(f"Local storage enabled: {storage_service.__class__.__name__}")
+            self.update_session_config_messages()
         except Exception as e:
             logger.error(f"Failed to initialize storage: {e}")
             raise
@@ -419,9 +420,11 @@ class TicosClient(MessageCallbackInterface):
                     # Check if we need to generate a memory
                     if text_message and not msg_type == 'conversation.item.created':
                         self.message_counter += 1
-                        if self.message_counter >= self.memory_rounds:
+                        if self.message_counter >= self.context_rounds:
+                            self.message_counter = 0  # Reset counter
                             self.generate_memory()
-                            self.message_counter = 0
+                            # Update session_config with latest messages after memory generation
+                            self.update_session_config_messages()
                 except Exception as e:
                     logger.error(f"Failed to save message to storage: {e}", exc_info=True)
 
@@ -482,7 +485,7 @@ class TicosClient(MessageCallbackInterface):
                 return
                 
             # Get the latest messages
-            messages = self.storage.get_messages(0, self.context_rounds, True)
+            messages = self.storage.get_messages(0, self.context_rounds * 2, True)
             
             # Get the latest memory for context
             latest_memory = self.storage.get_latest_memory()
@@ -502,6 +505,113 @@ class TicosClient(MessageCallbackInterface):
                 logger.info(f"Generated new memory: {memory_content}")
         except Exception as e:
             logger.error(f"Error generating memory: {e}", exc_info=True)
+    
+    def update_session_config_messages(self):
+        """
+        Update the session_config file with the latest conversation messages.
+        This ensures that the agent has context when restarted.
+        """
+        if not self.storage:
+            logger.warning("Cannot update session_config messages: storage not initialized")
+            return
+            
+        try:
+            # Get the latest memory
+            latest_memory = self.storage.get_latest_memory()
+            last_memory_content = latest_memory["content"] if latest_memory else ""
+            
+            # Get the latest messages (context_rounds * 2)
+            messages = self.storage.get_messages(0, self.context_rounds * 2, True)
+            
+            # Prepare message list for session_config
+            session_messages = []
+            
+            # Add conversation messages
+            message_count = 0
+            
+            for message in reversed(messages):
+                    
+                try:
+                    # Extract content from message
+                    content = ""
+                    msg_content = message.content
+                    
+                    if isinstance(msg_content, str):
+                        content = msg_content
+                    else:
+                        content = str(msg_content)
+                    
+                    if content:
+                        session_messages.append({
+                            "role": message.role.value,
+                            "content": content
+                        })
+                        message_count += 1
+                        
+                except Exception as e:
+                    logger.warning(f"Error processing message for session_config: {e}")
+            
+            # Ensure the last message is from assistant
+            while session_messages and session_messages[-1]["role"] != "assistant":
+                session_messages.pop()
+            
+            # Add memory message if available
+            if last_memory_content:
+                memory_message = {
+                    "role": "user",
+                    "content": f"这是你总结的我们之前沟通的记忆: \n```{last_memory_content}```\n请基于此以及我们最近的会话继续和我交流："
+                }
+                
+                # 如果 session_messages 的第一条 role 为 user，则替换它
+                if session_messages and session_messages[0]["role"] == "user":
+                    session_messages[0] = memory_message
+                else:
+                    # 否则将记忆消息插入到最前面
+                    session_messages.insert(0, memory_message)
+            
+            # Update session_config file
+            self._update_session_config_file(session_messages)
+            
+        except Exception as e:
+            logger.error(f"Error updating session_config messages: {e}")
+    
+    def _update_session_config_file(self, messages):
+        """
+        Update the session_config file with the provided messages.
+        Uses a safe write approach (write to temp file, then rename).
+        
+        Args:
+            messages: List of message objects to write to the session_config
+        """
+        try:
+            # Path to session_config
+            session_config_path = Path.home() / ".config" / "ticos" / "session_config"
+            
+            # Read current session_config
+            if not session_config_path.exists():
+                logger.warning(f"Session config file not found: {session_config_path}")
+                return
+                
+            with open(session_config_path, "r") as f:
+                session_config = json.load(f)
+            
+            # Update messages
+            if "model" not in session_config:
+                session_config["model"] = {}
+                
+            session_config["model"]["messages"] = messages
+            
+            # Write to temporary file
+            temp_path = session_config_path.with_suffix(".tmp")
+            with open(temp_path, "w") as f:
+                json.dump(session_config, f, indent=2, ensure_ascii=False)
+                
+            # Rename to overwrite original
+            temp_path.replace(session_config_path)
+            logger.info(f"Updated session_config with {len(messages)} messages")
+            
+        except Exception as e:
+            logger.error(f"Error writing session_config file: {e}")
     
     def _summarize_conversation(self, messages: List[Dict[str, Any]], last_memory: str) -> str:
         """
