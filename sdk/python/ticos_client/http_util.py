@@ -24,12 +24,15 @@ class HttpUtil:
             Summary text or None if failed
         """
         try:
-            api_url = f"https://{config_service.get_api_host()}/summarize"
+            api_url = f"https://stardust.ticos.cn/summarize"
             api_key = config_service.get_api_key()
             
             if not api_key:
                 logger.warning("API key is not configured")
                 return None
+            
+            # Get memory instructions from config if available
+            memory_instructions = config_service.get("model.memory_instructions", None)
             
             # Prepare request body
             history_array = []
@@ -40,14 +43,28 @@ class HttpUtil:
                 }
                 history_array.append(msg)
             
+            # Build request parameters
+            parameters = {
+                "max_length": 1024
+            }
+            
+            # Add memory instructions if available
+            if memory_instructions:
+                # Replace placeholders in memory instructions
+                instructions = memory_instructions.replace("{{latest_memory}}", last_memory if last_memory else "")
+                # TODO: Now conversation history is handled by another parameter, may change later
+                instructions = instructions.replace("{{conversation}}", "")
+                parameters["summarize_prompt"] = instructions
+            else:
+                # Use default prompt
+                parameters["summarize_prompt"] = (
+                    f"这是之前的记忆：{last_memory if last_memory else ''}，" +
+                    "总结上述对话，作为长期记忆供客户端保存。"
+                )
+            
             request_body = {
                 "conversation_history": history_array,
-                "parameters": {
-                    "max_length": 1024,
-                    "summarize_prompt": 
-                        f"这是之前的记忆：{last_memory if last_memory else ''}，" +
-                        "总结上述对话，作为长期记忆供客户端保存。"
-                }
+                "parameters": parameters
             }
             
             # Send request

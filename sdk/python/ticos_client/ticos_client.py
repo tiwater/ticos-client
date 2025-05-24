@@ -65,7 +65,7 @@ class TicosClient(MessageCallbackInterface):
         
         # Initialize config service
         self.config_service = ConfigService(save_mode, self.tf_root_dir)
-        self.memory_rounds = self.config_service.get_memory_rounds()
+        self.context_rounds = self.config_service.get_context_rounds()
         self.date_format = "%Y-%m-%d %H:%M:%S"
         
     def _generate_message_id(self) -> str:
@@ -482,7 +482,7 @@ class TicosClient(MessageCallbackInterface):
                 return
                 
             # Get the latest messages
-            messages = self.storage.get_messages(0, self.memory_rounds, True)
+            messages = self.storage.get_messages(0, self.context_rounds, True)
             
             # Get the latest memory for context
             latest_memory = self.storage.get_latest_memory()
