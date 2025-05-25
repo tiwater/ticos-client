@@ -18,6 +18,19 @@ A Python SDK for the Ticos Agent system. This SDK allows you to create applicati
 pip install ticos-client==0.5.0
 ```
 
+## Configuration
+
+The SDK uses two configuration files:
+
+1. `config.toml` - Main configuration file (TOML format)
+   - Location: `~/.config/ticos/config.toml`
+   - Contains device related settings and defaults
+
+2. `session_config` - Session-specific agent configuration (JSON format)
+   - Location (INTERNAL mode): `~/.config/ticos/session_config`
+   - Location (EXTERNAL mode): `/path/to/tf_card/session_config`
+   - Contains session-specific settings and state
+
 ## Quick Start
 
 ### Basic Usage
@@ -233,7 +246,7 @@ The raw message received from the Ticos Agent, it will be passed to the `set_mes
   "type": "response.content_part.done"
 }
 ```
-For the detail of the messages(events) in realtime protocol, please refer to [Realtime Server Events](https://platform.openai.com/docs/api-reference/realtime-server-events).
+For details about the messages (events) in the realtime protocol, please refer to [Realtime Server Events](https://platform.openai.com/docs/api-reference/realtime-server-events).
 
 ## Advanced Features
 
@@ -248,7 +261,7 @@ The SDK supports different storage modes for flexibility:
 
 2. **EXTERNAL**:
    - Uses an external storage service
-   - Support customized path with `tf_root_dir` is specified
+   - Supports custom paths when `tf_root_dir` is specified
 
 ### Error Handling
 
@@ -332,7 +345,7 @@ python -m build
 
 ### Code Style
 
-We use `black` for code formatting and `flake8` for linting:
+The project uses `black` for code formatting and `flake8` for linting:
 
 ```bash
 # Format code
