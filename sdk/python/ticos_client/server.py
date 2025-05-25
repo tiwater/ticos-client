@@ -62,43 +62,6 @@ class UnifiedServer:
         @self.app.get("/health")
         async def health_check():
             return {"status": "ok"}
-                
-        @self.app.get("/memories/latest")
-        async def get_latest_memories(count: int = 4):
-            """
-            Get the latest memories (messages) from storage.
-            
-            Args:
-                count: Number of latest messages to return (default: 4)
-                
-            Returns:
-                List of message objects with role and content fields
-            """
-            try:
-                if not self.storage:
-                    raise HTTPException(status_code=500, detail="Storage service not available")
-                
-                # Get the latest messages (in descending order by datetime)
-                messages = self.storage.get_messages(offset=0, limit=count, desc=True)
-                
-                # Return the full message content
-                result = []
-                for msg in reversed(messages):  # Reverse to get oldest first
-                    try:
-                        content = json.loads(msg.content) if isinstance(msg.content, str) else msg.content
-                        result.append({
-                            "role": msg.role.value,
-                            "content": content  # Return the full content
-                        })
-                    except Exception as e:
-                        logger.warning(f"Error processing message {msg.id}: {e}")
-                        continue
-                
-                return result
-                
-            except Exception as e:
-                logger.error(f"Error getting latest memories: {e}")
-                raise HTTPException(status_code=500, detail=str(e))
         
         @self.app.websocket("/realtime")
         async def websocket_endpoint(websocket: WebSocket):
