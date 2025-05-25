@@ -5,6 +5,8 @@ import threading
 import time
 from datetime import datetime
 import os
+from pathlib import Path
+from threading import Lock, Thread
 from typing import Callable, Dict, Any, Optional, List, Union
 from .server import UnifiedServer
 from .storage import StorageService, SQLiteStorageService
@@ -67,6 +69,10 @@ class TicosClient(MessageCallbackInterface):
         self.config_service = ConfigService(save_mode, self.tf_root_dir)
         self.context_rounds = self.config_service.get_context_rounds()
         self.date_format = "%Y-%m-%d %H:%M:%S"
+        
+        # Initialize background task management
+        self._background_task_lock = threading.Lock()
+        self._background_tasks = []
         
     def _generate_message_id(self) -> str:
         """
@@ -363,7 +369,6 @@ class TicosClient(MessageCallbackInterface):
                                 # Update the message with the transcript
                                 msg.content = transcript
                                 self.storage.update_message(msg.id, msg)
-                                text_message = True
                                 logger.debug(f"Updated user message with transcript for item_id: {item_id}")
                                 
                                 # Call conversation handler if available
@@ -420,11 +425,14 @@ class TicosClient(MessageCallbackInterface):
                     # Check if we need to generate a memory
                     if text_message and not msg_type == 'conversation.item.created':
                         self.message_counter += 1
+                        logger.debug(f"Message counter: {self.message_counter}")
                         if self.message_counter >= self.context_rounds:
                             self.message_counter = 0  # Reset counter
-                            self.generate_memory()
-                            # Update session_config with latest messages after memory generation
-                            self.update_session_config_messages()
+                            # Start memory generation and session update in background
+                            self._run_in_background(
+                                self._generate_memory_and_update_session,
+                                "memory_generation"
+                            )
                 except Exception as e:
                     logger.error(f"Failed to save message to storage: {e}", exc_info=True)
 
@@ -505,6 +513,44 @@ class TicosClient(MessageCallbackInterface):
                 logger.info(f"Generated new memory: {memory_content}")
         except Exception as e:
             logger.error(f"Error generating memory: {e}", exc_info=True)
+    
+    def _generate_memory_and_update_session(self):
+        """
+        Generate memory and update session config in one go.
+        This method is designed to run in a background thread.
+        """
+        try:
+            self.generate_memory()
+            self.update_session_config_messages()
+        except Exception as e:
+            logger.error(f"Error in background task: {e}", exc_info=True)
+    
+    def _run_in_background(self, func, task_name):
+        """
+        Run a function in a background thread.
+        
+        Args:
+            func: The function to run
+            task_name: Name of the task for logging
+        """
+        def task_wrapper():
+            try:
+                logger.debug(f"Starting background task: {task_name}")
+                func()
+                logger.debug(f"Completed background task: {task_name}")
+            except Exception as e:
+                logger.error(f"Error in background task {task_name}: {e}", exc_info=True)
+            finally:
+                with self._background_task_lock:
+                    self._background_tasks = [t for t in self._background_tasks if t.is_alive()]
+        
+        thread = Thread(target=task_wrapper, daemon=True, name=f"TicosClient_{task_name}")
+        thread.start()
+        
+        with self._background_task_lock:
+            # Clean up finished tasks
+            self._background_tasks = [t for t in self._background_tasks if t.is_alive()]
+            self._background_tasks.append(thread)
     
     def update_session_config_messages(self):
         """

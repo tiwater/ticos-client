@@ -45,7 +45,7 @@ class HttpUtil:
             
             # Build request parameters
             parameters = {
-                "max_length": 1024
+                "max_length": 4096
             }
             
             # Add memory instructions if available
@@ -67,27 +67,44 @@ class HttpUtil:
                 "parameters": parameters
             }
             
-            # Send request
+            # Prepare request
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {api_key}"
             }
             
-            response = requests.post(
-                api_url,
-                json=request_body,
-                headers=headers,
-                timeout=10
-            )
+            # Log request details
+            logger.debug(f"Request body: {json.dumps(request_body, indent=2, ensure_ascii=False)}")
             
-            if response.status_code == 200:
-                response_data = response.json()
-                summary_array = response_data.get("summary", [])
-                # Join all summary parts with spaces
-                summary = " ".join(summary_array)
-                return summary
-            else:
-                logger.warning(f"Failed to get summary. Status code: {response.status_code}")
+            try:
+                response = requests.post(
+                    api_url,
+                    json=request_body,
+                    headers=headers,
+                    timeout=60  # Increased timeout to 60 seconds
+                )
+                
+                if response.status_code == 200:
+                    response_data = response.json()
+                    
+                    summary_array = response_data.get("summary", [])
+                    # Join all summary parts with spaces
+                    summary = " ".join(summary_array)
+                    logger.debug(f"Generated summary: {summary}")
+                    return summary
+                else:
+                    error_msg = f"Failed to get summary. Status code: {response.status_code}"
+                    try:
+                        error_details = response.json()
+                        error_msg += f"\nError details: {json.dumps(error_details, indent=2, ensure_ascii=False)}"
+                    except:
+                        error_msg += f"\nResponse text: {response.text[:500]}"
+                    
+                    logger.warning(error_msg)
+                    return None
+                    
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Request failed: {str(e)}", exc_info=True)
                 return None
                 
         except Exception as e:

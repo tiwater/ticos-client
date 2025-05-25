@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 import logging
 from pathlib import Path
@@ -39,8 +40,8 @@ def find_tf_root_directory() -> Optional[str]:
                     if mount_dir.exists() and mount_dir.is_dir():
                         # Check if this looks like a TF card mount
                         mount_name = mount_point.rsplit("/", 1)[-1]
-                        if (mount_name.match("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}") or
-                            mount_name.match("[a-zA-Z0-9_\-]+")):  # Also accept simple names
+                        if (re.match(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", mount_name) or
+                            re.match(r"^[a-zA-Z0-9_\-]+$", mount_name)):  # Also accept simple names
                             logger.info(f"Found TF card mount point: {mount_dir}")
                             return str(mount_dir)
                             

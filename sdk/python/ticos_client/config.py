@@ -5,6 +5,7 @@ import logging
 import requests
 from pathlib import Path
 from typing import Optional, Any, Dict, Union
+from .enums import SaveMode
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +75,7 @@ class ConfigService:
                 self._session_config = json.load(f)
             
             # If in EXTERNAL mode, check for TF card session config
-            if self.save_mode == "external" and self.tf_config_dir:
+            if self.save_mode == SaveMode.EXTERNAL and self.tf_config_dir:
                 self.tf_config_dir.mkdir(parents=True, exist_ok=True)
                 tf_session_file = self.tf_config_dir / "session_config"
                 
@@ -153,6 +154,7 @@ class ConfigService:
         
         # Update session config with merged result
         self._session_config = merged
+        logger.debug(f"Merged _session_config: {json.dumps(self._session_config, indent=2, ensure_ascii=False)}")
     
     def _merge_configs(self, base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
         """Merge two configurations, with the second config taking precedence."""
