@@ -128,7 +128,10 @@ class TicosClient(MessageCallbackInterface):
             storage_service.initialize()
             self.storage = storage_service
             logger.info(f"Local storage enabled: {storage_service.__class__.__name__}")
-            self.update_session_config_messages()
+
+            if self.config_service.get("model.enable_memory_generation") == "client":
+                # We need to update the context messages in client side
+                self.update_session_config_messages()
         except Exception as e:
             logger.error(f"Failed to initialize storage: {e}")
             raise
@@ -424,15 +427,17 @@ class TicosClient(MessageCallbackInterface):
                         
                     # Check if we need to generate a memory
                     if text_message and not msg_type == 'conversation.item.created':
-                        self.message_counter += 1
-                        logger.debug(f"Message counter: {self.message_counter}")
-                        if self.message_counter >= self.context_rounds:
-                            self.message_counter = 0  # Reset counter
-                            # Start memory generation and session update in background
-                            self._run_in_background(
-                                self._generate_memory_and_update_session,
-                                "memory_generation"
-                            )
+                        # Only proceed if memory generation is enabled in config
+                        if self.config_service.get("model.enable_memory_generation") == "client":
+                            self.message_counter += 1
+                            logger.debug(f"Message counter: {self.message_counter}")
+                            if self.message_counter >= self.context_rounds:
+                                self.message_counter = 0  # Reset counter
+                                # Start memory generation and session update in background
+                                self._run_in_background(
+                                    self._generate_memory_and_update_session,
+                                    "memory_generation"
+                                )
                 except Exception as e:
                     logger.error(f"Failed to save message to storage: {e}", exc_info=True)
 

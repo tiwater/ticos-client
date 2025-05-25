@@ -8,7 +8,7 @@ from enum import Enum
 
 from ticos_client import TicosClient, SaveMode
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 def message_handler(message):
