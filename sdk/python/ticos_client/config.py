@@ -248,7 +248,7 @@ class ConfigService:
 
     def get_context_rounds(self) -> int:
         """Get the number of context rounds."""
-        return self.get("model.history_conversation_length", 6)
+        return self.get("model.history_conversation_length", 12)
 
     def get_memory_rounds(self) -> int:
         """Get the number of memory rounds.
