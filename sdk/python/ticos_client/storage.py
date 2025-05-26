@@ -90,6 +90,9 @@ class StorageService(ABC):
 class SQLiteStorageService(StorageService):
     """SQLite implementation of StorageService"""
 
+    # Current database schema version
+    CURRENT_DB_VERSION = 1
+
     def __init__(self):
         """
         Initialize SQLiteStorageService.
@@ -119,41 +122,140 @@ class SQLiteStorageService(StorageService):
 
             # Set database path
             self.db_path = str(config_dir / "ticos.db")
-
+            
+            # Check if database exists
+            db_exists = Path(self.db_path).exists()
+            
             # Initialize database tables
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-
-                # Create messages table
+                
+                # Create version table if it doesn't exist
                 cursor.execute(
                     """
-                    CREATE TABLE IF NOT EXISTS messages (
-                        id TEXT PRIMARY KEY,
-                        role TEXT NOT NULL,
-                        content TEXT NOT NULL,
-                        item_id TEXT,
-                        datetime TEXT NOT NULL
+                    CREATE TABLE IF NOT EXISTS db_version (
+                        id INTEGER PRIMARY KEY,
+                        version INTEGER NOT NULL,
+                        updated_at TEXT NOT NULL
                     )
                 """
                 )
-
-                # Create memories table
-                cursor.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS memories (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        type TEXT NOT NULL,
-                        content TEXT NOT NULL,
-                        datetime TEXT NOT NULL
+                
+                # Check current database version
+                cursor.execute("SELECT version FROM db_version ORDER BY id DESC LIMIT 1")
+                row = cursor.fetchone()
+                current_version = row[0] if row else 0
+                
+                # If database is new or no version info, create latest schema directly
+                if not db_exists:
+                    logger.info(f"Creating new database with latest schema (version {self.CURRENT_DB_VERSION})")
+                    self._create_latest_schema(conn)
+                    
+                    # Insert version record
+                    cursor.execute(
+                        """
+                        INSERT INTO db_version (version, updated_at)
+                        VALUES (?, ?)
+                        """,
+                        (self.CURRENT_DB_VERSION, datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
                     )
-                """
-                )
-
-                conn.commit()
+                    conn.commit()
+                # If database exists but needs upgrading, apply incremental migrations
+                elif current_version < self.CURRENT_DB_VERSION:
+                    logger.info(f"Upgrading database from version {current_version} to {self.CURRENT_DB_VERSION}")
+                    self._migrate_database(conn, current_version)
+                    
+                    # Update database version
+                    cursor.execute(
+                        """
+                        INSERT INTO db_version (version, updated_at)
+                        VALUES (?, ?)
+                        """,
+                        (self.CURRENT_DB_VERSION, datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+                    )
+                    conn.commit()
+                    
+                logger.info(f"Storage initialized successfully (DB version: {self.CURRENT_DB_VERSION})")
         except Exception as e:
             logger.error(f"Failed to initialize storage: {e}")
             raise
 
+    def _create_latest_schema(self, conn):
+        """Create the latest database schema from scratch"""
+        cursor = conn.cursor()
+        
+        # Create messages table with the latest schema
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS messages (
+                id TEXT PRIMARY KEY,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                item_id TEXT,
+                user_id TEXT DEFAULT 'nobody',
+                datetime TEXT NOT NULL
+            )
+            """
+        )
+        logger.info("Created messages table with latest schema")
+        
+        # Create memories table with the latest schema
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS memories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                type TEXT NOT NULL,
+                content TEXT NOT NULL,
+                user_id TEXT DEFAULT 'nobody',
+                datetime TEXT NOT NULL
+            )
+            """
+        )
+        logger.info("Created memories table with latest schema")
+        
+        conn.commit()
+    
+    def _migrate_database(self, conn, current_version):
+        """Perform incremental database migrations based on current version"""
+        cursor = conn.cursor()
+        
+        # Apply migrations sequentially
+        # Migration from version 0 to 1 (add user_id field)
+        if current_version < 1:
+            logger.info("Migrating database from version 0 to 1")
+            
+            # Add user_id column to messages table
+            cursor.execute("PRAGMA table_info(messages)")
+            columns = [column[1] for column in cursor.fetchall()]
+            if "user_id" not in columns:
+                cursor.execute("ALTER TABLE messages ADD COLUMN user_id TEXT DEFAULT 'nobody'")
+                logger.info("Added user_id column to messages table")
+            
+            # Add user_id column to memories table
+            cursor.execute("PRAGMA table_info(memories)")
+            columns = [column[1] for column in cursor.fetchall()]
+            if "user_id" not in columns:
+                cursor.execute("ALTER TABLE memories ADD COLUMN user_id TEXT DEFAULT 'nobody'")
+                logger.info("Added user_id column to memories table")
+            
+            conn.commit()
+            current_version = 1
+        
+        # Future migrations can be added here
+        # Migration from version 1 to 2
+        # if current_version < 2:
+        #     logger.info("Migrating database from version 1 to 2")
+        #     # Add migration code here
+        #     conn.commit()
+        #     current_version = 2
+        
+        # Migration from version 2 to 3
+        # if current_version < 3:
+        #     logger.info("Migrating database from version 2 to 3")
+        #     # Add migration code here
+        #     conn.commit()
+        #     current_version = 3
+    
     def _get_connection(self):
         """Get a new database connection"""
         return sqlite3.connect(self.db_path)
@@ -165,14 +267,15 @@ class SQLiteStorageService(StorageService):
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    INSERT OR REPLACE INTO messages (id, role, content, item_id, datetime)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT OR REPLACE INTO messages (id, role, content, item_id, user_id, datetime)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
                     (
                         message.id,
                         message.role.value,
                         message.content,
                         message.item_id,
+                        message.user_id,
                         message.datetime,
                     ),
                 )
@@ -188,7 +291,7 @@ class SQLiteStorageService(StorageService):
             with self._get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "SELECT id, role, content, item_id, datetime FROM messages WHERE id = ?",
+                    "SELECT id, role, content, item_id, user_id, datetime FROM messages WHERE id = ?",
                     (message_id,),
                 )
                 row = cursor.fetchone()
@@ -198,7 +301,8 @@ class SQLiteStorageService(StorageService):
                         role=MessageRole(row[1]),
                         content=row[2],
                         item_id=row[3],
-                        datetime=row[4],
+                        user_id=row[4],
+                        datetime=row[5],
                     )
                 return None
         except Exception as e:
@@ -212,13 +316,14 @@ class SQLiteStorageService(StorageService):
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    UPDATE messages SET role = ?, content = ?, item_id = ?, datetime = ?
+                    UPDATE messages SET role = ?, content = ?, item_id = ?, user_id = ?, datetime = ?
                     WHERE id = ?
                     """,
                     (
                         message.role.value,
                         message.content,
                         message.item_id,
+                        message.user_id,
                         message.datetime,
                         message_id,
                     ),
@@ -250,7 +355,7 @@ class SQLiteStorageService(StorageService):
                 cursor = conn.cursor()
                 order = "DESC" if desc else "ASC"
                 cursor.execute(
-                    f"SELECT id, role, content, item_id, datetime FROM messages ORDER BY datetime {order} LIMIT ? OFFSET ?",
+                    f"SELECT id, role, content, item_id, user_id, datetime FROM messages ORDER BY datetime {order} LIMIT ? OFFSET ?",
                     (limit, offset),
                 )
                 return [
@@ -259,7 +364,8 @@ class SQLiteStorageService(StorageService):
                         role=MessageRole(row[1]),
                         content=row[2],
                         item_id=row[3],
-                        datetime=row[4],
+                        user_id=row[4],
+                        datetime=row[5],
                     )
                     for row in cursor.fetchall()
                 ]
@@ -273,7 +379,7 @@ class SQLiteStorageService(StorageService):
             with self._get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "SELECT id, role, content, item_id, datetime FROM messages WHERE item_id = ?",
+                    "SELECT id, role, content, item_id, user_id, datetime FROM messages WHERE item_id = ?",
                     (item_id,),
                 )
                 row = cursor.fetchone()
@@ -283,7 +389,8 @@ class SQLiteStorageService(StorageService):
                         role=MessageRole(row[1]),
                         content=row[2],
                         item_id=row[3],
-                        datetime=row[4],
+                        user_id=row[4],
+                        datetime=row[5],
                     )
                 return None
         except Exception as e:
@@ -297,10 +404,10 @@ class SQLiteStorageService(StorageService):
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    INSERT INTO memories (type, content, datetime)
-                    VALUES (?, ?, ?)
+                    INSERT INTO memories (type, content, user_id, datetime)
+                    VALUES (?, ?, ?, ?)
                     """,
-                    (memory.type.value, memory.content, memory.datetime),
+                    (memory.type.value, memory.content, memory.user_id, memory.datetime),
                 )
                 conn.commit()
                 return True
@@ -314,7 +421,7 @@ class SQLiteStorageService(StorageService):
             with self._get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "SELECT id, type, content, datetime FROM memories WHERE id = ?",
+                    "SELECT id, type, content, user_id, datetime FROM memories WHERE id = ?",
                     (memory_id,),
                 )
                 row = cursor.fetchone()
@@ -323,7 +430,8 @@ class SQLiteStorageService(StorageService):
                         "id": row[0],
                         "type": row[1],
                         "content": row[2],
-                        "datetime": row[3],
+                        "user_id": row[3],
+                        "datetime": row[4],
                     }
                 return None
         except Exception as e:
@@ -337,10 +445,10 @@ class SQLiteStorageService(StorageService):
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    UPDATE memories SET type = ?, content = ?, datetime = ?
+                    UPDATE memories SET type = ?, content = ?, user_id = ?, datetime = ?
                     WHERE id = ?
                     """,
-                    (memory.type.value, memory.content, memory.datetime, memory_id),
+                    (memory.type.value, memory.content, memory.user_id, memory.datetime, memory_id),
                 )
                 conn.commit()
                 return cursor.rowcount > 0
@@ -366,7 +474,7 @@ class SQLiteStorageService(StorageService):
             with self._get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "SELECT id, type, content, datetime FROM memories ORDER BY datetime DESC LIMIT 1"
+                    "SELECT id, type, content, user_id, datetime FROM memories ORDER BY datetime DESC LIMIT 1"
                 )
                 row = cursor.fetchone()
                 if row:
@@ -374,7 +482,8 @@ class SQLiteStorageService(StorageService):
                         "id": row[0],
                         "type": row[1],
                         "content": row[2],
-                        "datetime": row[3],
+                        "user_id": row[3],
+                        "datetime": row[4],
                     }
                 return None
         except Exception as e:
@@ -390,7 +499,7 @@ class SQLiteStorageService(StorageService):
                 cursor = conn.cursor()
                 order = "DESC" if desc else "ASC"
                 cursor.execute(
-                    f"SELECT id, type, content, datetime FROM memories ORDER BY datetime {order} LIMIT ? OFFSET ?",
+                    f"SELECT id, type, content, user_id, datetime FROM memories ORDER BY datetime {order} LIMIT ? OFFSET ?",
                     (limit, offset),
                 )
                 return [
@@ -398,7 +507,8 @@ class SQLiteStorageService(StorageService):
                         "id": row[0],
                         "type": row[1],
                         "content": row[2],
-                        "datetime": row[3],
+                        "user_id": row[3],
+                        "datetime": row[4],
                     }
                     for row in cursor.fetchall()
                 ]

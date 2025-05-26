@@ -723,11 +723,16 @@ class TicosClient(MessageCallbackInterface):
             with open(session_config_path, "r") as f:
                 session_config = json.load(f)
 
-            # Update messages
+            # Update messages under model.messages.nobody
             if "model" not in session_config:
                 session_config["model"] = {}
-
-            session_config["model"]["messages"] = messages
+                
+            # If messages is a list, convert to dict format with 'nobody' key
+            if "messages" not in session_config["model"] or isinstance(session_config["model"]["messages"], list):
+                session_config["model"]["messages"] = {"nobody": messages}
+            else:
+                # It's already a dict, update the 'nobody' key
+                session_config["model"]["messages"]["nobody"] = messages
 
             # Write to temporary file
             temp_path = session_config_path.with_suffix(".tmp")

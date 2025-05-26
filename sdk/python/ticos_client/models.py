@@ -15,6 +15,7 @@ class Message(BaseModel):
     role: MessageRole
     content: str
     item_id: Optional[str] = None  # Added item_id field for tracking conversation items
+    user_id: str = "nobody"  # User identifier, default to "nobody"
     datetime: str = Field(
         default_factory=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     )
@@ -29,6 +30,7 @@ class Memory(BaseModel):
     id: Optional[int] = None
     type: MemoryType
     content: str
+    user_id: str = "nobody"  # User identifier, default to "nobody"
     datetime: str = Field(
         default_factory=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     )
