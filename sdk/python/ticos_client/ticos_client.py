@@ -684,18 +684,31 @@ class TicosClient(MessageCallbackInterface):
                 session_messages.pop()
 
             # Add memory message if available
+            # if last_memory_content:
+            #     memory_message = {
+            #         "role": "user",
+            #         "content": f"这是你总结的我们之前沟通的记忆: \n```{last_memory_content}```\n请基于此以及我们最近的会话继续和我交流：",
+            #     }
+
+            #     # 如果 session_messages 的第一条 role 为 user，则替换它
+            #     if session_messages and session_messages[0]["role"] == "user":
+            #         session_messages[0] = memory_message
+            #     else:
+            #         # 否则将记忆消息插入到最前面
+            #         session_messages.insert(0, memory_message)
+
+            # Change the memory to last message
             if last_memory_content:
                 memory_message = {
                     "role": "user",
                     "content": f"这是你总结的我们之前沟通的记忆: \n```{last_memory_content}```\n请基于此以及我们最近的会话继续和我交流：",
                 }
 
-                # 如果 session_messages 的第一条 role 为 user，则替换它
-                if session_messages and session_messages[0]["role"] == "user":
-                    session_messages[0] = memory_message
-                else:
-                    # 否则将记忆消息插入到最前面
-                    session_messages.insert(0, memory_message)
+                session_messages.append(memory_message)
+
+                session_messages.append(
+                    {"role": "assistant", "content": "OK"}
+                )
 
             # Update session_config file
             self._update_session_config_file(session_messages)
