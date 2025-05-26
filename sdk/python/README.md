@@ -18,6 +18,8 @@ A Python SDK for the Ticos Agent system. This SDK allows you to create applicati
 pip install ticos-client==0.5.0
 ```
 
+Depends on ticos-agent 0.10.0 and above.
+
 ## Configuration
 
 The SDK uses two configuration files:
@@ -28,7 +30,7 @@ The SDK uses two configuration files:
 
 2. `session_config` - Session-specific agent configuration (JSON format)
    - Location (INTERNAL mode): `~/.config/ticos/session_config`
-   - Location (EXTERNAL mode): `/path/to/tf_card/session_config`
+   - Location (EXTERNAL mode): `/path/to/tf_card/.config/ticos/session_config`
    - Contains session-specific settings and state
 
 ## Quick Start
