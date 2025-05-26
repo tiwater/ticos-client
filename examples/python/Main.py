@@ -1,10 +1,6 @@
-import sys
-import os
 import time
 import logging
-import random
 from datetime import datetime
-from enum import Enum
 
 from ticos_client import TicosClient, SaveMode
 

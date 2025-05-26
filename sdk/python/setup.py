@@ -42,6 +42,8 @@ setup(
         "alembic>=1.7.0,<2.0.0",
         "python-dateutil>=2.8.2,<3.0.0",
         "toml>=0.10.0,<1.0.0",
+        "uvicorn[standard]>=0.15.0,<1.0.0",
+        "requests>=2.26.0,<3.0.0",
     ],
     extras_require={
         "dev": [

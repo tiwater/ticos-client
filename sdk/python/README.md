@@ -265,6 +265,18 @@ The SDK supports different storage modes for flexibility:
    - Uses an external storage service
    - Supports custom paths when `tf_root_dir` is specified
 
+### Data Structure
+
+The storage system maintains two main types of data:
+
+1. **Messages**:
+  Chat history.
+
+2. **Memories**:
+  The generated long-term memory.
+
+In INTERNAL mode, data is stored in an SQLite database located at `~/.config/ticos/ticos.db`. In EXTERNAL mode, the storage location depends on the `tf_root_dir` configuration.
+
 ### Error Handling
 
 - All network operations include error handling and retry logic
