@@ -198,7 +198,7 @@ class ConfigService:
         Get a configuration value.
 
         Args:
-            path: The path to the configuration value (e.g., "model.context_round")
+            path: The path to the configuration value (e.g., "model.history_conversation_length")
             default: The default value to return if the path is not found
 
         Returns:
@@ -248,12 +248,12 @@ class ConfigService:
 
     def get_context_rounds(self) -> int:
         """Get the number of context rounds."""
-        return self.get("model.context_round", 6)
+        return self.get("model.history_conversation_length", 6)
 
     def get_memory_rounds(self) -> int:
         """Get the number of memory rounds.
 
-        Note: This is now deprecated and redirects to context_round.
+        Note: This is now deprecated and redirects to history_conversation_length.
         """
         return self.get_context_rounds()
 

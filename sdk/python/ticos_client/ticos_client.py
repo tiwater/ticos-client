@@ -482,7 +482,7 @@ class TicosClient(MessageCallbackInterface):
                         ):
                             self.message_counter += 1
                             logger.debug(f"Message counter: {self.message_counter}")
-                            if self.message_counter >= self.context_rounds:
+                            if self.message_counter * 2 >= self.context_rounds:
                                 self.message_counter = 0  # Reset counter
                                 # Start memory generation and session update in background
                                 self._run_in_background(
@@ -565,7 +565,7 @@ class TicosClient(MessageCallbackInterface):
                 return
 
             # Get the latest messages
-            messages = self.storage.get_messages(0, self.context_rounds * 2, True)
+            messages = self.storage.get_messages(0, self.context_rounds, True)
 
             # Get the latest memory for context
             latest_memory = self.storage.get_latest_memory()
@@ -649,8 +649,8 @@ class TicosClient(MessageCallbackInterface):
             latest_memory = self.storage.get_latest_memory()
             last_memory_content = latest_memory["content"] if latest_memory else ""
 
-            # Get the latest messages (context_rounds * 2)
-            messages = self.storage.get_messages(0, self.context_rounds * 2, True)
+            # Get the latest messages
+            messages = self.storage.get_messages(0, self.context_rounds, True)
 
             # Prepare message list for session_config
             session_messages = []

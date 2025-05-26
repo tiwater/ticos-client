@@ -42,8 +42,16 @@ class HttpUtil:
                 logger.warning("Agent ID is not configured")
                 return None
 
-            # Build API URL with agent_id
-            api_url = f"https://stardust.ticos.cn/summarize?agent_id={agent_id}"
+            # Build API URL with agent_id using configured host
+            api_host = config_service.get_api_host()
+            if "stardust" in api_host:
+                # Convert wss:// to https://
+                api_base = api_host.replace('wss://', 'https://')
+            else:
+                # Use default stardust host
+                api_base = "https://stardust.ticos.cn"
+            
+            api_url = f"{api_base}/summarize?agent_id={agent_id}"
 
             # Prepare conversation history
             history_array = []

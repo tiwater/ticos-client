@@ -26,7 +26,7 @@ class TestTicosClient(unittest.TestCase):
         # Create config.toml
         config = {
             "api": {"api_key": "test_api_key", "base_url": "http://test-api.ticos.cn"},
-            "model": {"enable_memory_generation": "client", "context_round": 5},
+            "model": {"enable_memory_generation": "client", "history_conversation_length": 5},
         }
 
         # Write config.toml
