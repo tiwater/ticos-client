@@ -40,7 +40,7 @@ This example demonstrates how to use the Ticos Client Python SDK to communicate 
 
 ## Requirements
 
-- Python 3.8 or later
+- Python 3.9 or later
 - ticos-client 0.5.0 or later
 - (Optional) For development: pytest, black, flake8
 

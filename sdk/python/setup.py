@@ -29,7 +29,7 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Typing :: Typed",
     ],
-    python_requires=">=3.7",
+    python_requires=">=3.9",
     install_requires=[
         "fastapi>=0.68.0,<1.0.0",
         "uvicorn>=0.15.0,<1.0.0",
