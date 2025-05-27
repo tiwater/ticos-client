@@ -52,7 +52,7 @@ class StorageService(ABC):
     @abstractmethod
     def get_messages(
         self, offset: int = 0, limit: int = 100, desc: bool = True
-    ) -> list[Message]:
+    ) -> List[Message]:
         """Get a list of messages from storage."""
         pass
 
