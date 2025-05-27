@@ -306,7 +306,7 @@ In INTERNAL mode, data is stored in an SQLite database located at `~/.config/tic
 
 ### Prerequisites
 
-- Python 3.9+
+- Python 3.8+
 - pip 20.0.0+
 - Git
 
