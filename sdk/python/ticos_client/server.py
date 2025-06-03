@@ -48,9 +48,6 @@ class UnifiedServer:
         self._server = None
         self._should_exit = False
         self.message_callback = message_callback
-        self._last_audio_delta_item_id = (
-            None  # Track last processed audio delta item_id
-        )
 
         # Ensure message_callback is properly initialized
         if not isinstance(message_callback, MessageCallbackInterface):
@@ -218,23 +215,10 @@ class UnifiedServer:
             "response.output_item.done",
             "response.audio_transcript.delta",
             "response.done",
+            "response.audio.delta",
         }
 
         if msg_type in allowed_types:
-            return True
-
-        # Special handling for audio.delta messages
-        if msg_type == "response.audio.delta":
-            item_id = message.get("item_id")
-            if not item_id:
-                return False
-
-            # Only process the first audio.delta for each item_id
-            if item_id == self._last_audio_delta_item_id:
-                return False
-
-            # Update the last processed item_id
-            self._last_audio_delta_item_id = item_id
             return True
 
         return False
