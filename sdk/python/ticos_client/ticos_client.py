@@ -15,6 +15,7 @@ from .enums import SaveMode
 from .config import ConfigService
 from .utils import find_tf_root_directory
 from .http_util import HttpUtil
+from .websocket_client import TicosWebSocketClient
 import requests
 
 logger = logging.getLogger(__name__)
@@ -77,6 +78,9 @@ class TicosClient(MessageCallbackInterface):
         # Initialize background task management
         self._background_task_lock = threading.Lock()
         self._background_tasks = []
+        
+        # Initialize WebSocket client
+        self.ws_client = TicosWebSocketClient(self.config_service)
 
     def _generate_message_id(self) -> str:
         """
@@ -206,82 +210,80 @@ class TicosClient(MessageCallbackInterface):
         Returns:
             bool: True if server started successfully, False otherwise
         """
-        if self.running:
-            logger.warning("Ticos server is already running")
-            return False
-
-        # Start the server in a separate thread
-        def run_server():
-            try:
-                self.server = UnifiedServer(
-                    message_callback=self,
-                    port=self.port,
-                    storage_service=self.storage,
-                )
-                import uvicorn
-
-                config = uvicorn.Config(
-                    self.server.app, host="0.0.0.0", port=self.port, log_level="info"
-                )
-                self._server = uvicorn.Server(config)
-                self.running = True
-                self._server.run()
-            except Exception as e:
-                logger.error(f"Failed to start server: {e}")
-                self.running = False
-
-        self.server_thread = threading.Thread(target=run_server, daemon=True)
-        self.server_thread.start()
-
-        # Check server status by making a test request
         try:
-            for _ in range(10):  # Retry for up to 1 second
+            # Create and start the server
+            self.server = UnifiedServer(
+                message_callback=self, port=self.port, storage_service=self.storage
+            )
+
+            def run_server():
                 try:
-                    response = requests.get(f"http://localhost:{self.port}/health")
-                    if response.status_code == 200:
-                        logger.info(f"Ticos server started on port {self.port}")
-                        return True
-                except requests.exceptions.ConnectionError:
-                    time.sleep(0.1)
-            return False
+                    self.server.run()
+                except Exception as e:
+                    logger.error(f"Server error: {e}")
+                    self.running = False
+
+            self.server_thread = Thread(target=run_server, daemon=True)
+            self.server_thread.start()
+            self.running = True
+
+            logger.info(f"Ticos server started on port {self.port}")
+            return True
+
         except Exception as e:
-            logger.error(f"Error checking server status: {e}")
+            logger.error(f"Failed to start Ticos server: {e}")
+            self.running = False
             return False
 
     def stop(self):
         """Stop the server and clean up resources."""
-        if not self.running:
-            return
-
-        logger.info("Stopping Ticos server...")
-        self.running = False
-
         try:
-            # Signal the server to shut down gracefully
-            if hasattr(self, "server") and self.server:
-                # Create a new event loop for the shutdown process
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
+            if self.server:
+                # Create a new event loop for the current thread if needed
                 try:
-                    # Run the shutdown coroutine
-                    loop.run_until_complete(self.server.shutdown())
-                except Exception as e:
-                    logger.error(f"Error during server shutdown: {e}")
-                finally:
-                    loop.close()
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
 
-            # Wait for the server thread to finish
-            if hasattr(self, "server_thread") and self.server_thread.is_alive():
-                self.server_thread.join(timeout=2.0)
-                if self.server_thread.is_alive():
-                    logger.warning("Server thread did not shut down gracefully")
+                # Run the shutdown coroutine
+                if loop.is_running():
+                    future = asyncio.run_coroutine_threadsafe(
+                        self.server.shutdown(), loop
+                    )
+                    future.result(timeout=5)  # Wait for up to 5 seconds
+                else:
+                    loop.run_until_complete(self.server.shutdown())
+
+            # Wait for server thread to finish
+            if self.server_thread and self.server_thread.is_alive():
+                self.server_thread.join(timeout=5)
+
+            # Close WebSocket client if active
+            if hasattr(self, 'ws_client'):
+                self.ws_client.close()
+
+            # Clean up resources
+            self.server = None
+            self.server_thread = None
+            self.running = False
+
+            # Cancel any background tasks
+            with self._background_task_lock:
+                for task in self._background_tasks:
+                    if task.is_alive():
+                        # We can't forcibly terminate threads in Python,
+                        # but we can set a flag that the thread should check
+                        pass
+                self._background_tasks = []
 
             logger.info("Ticos server stopped")
+
         except Exception as e:
-            logger.error(f"Error stopping server: {e}")
-        finally:
-            # Ensure we clean up resources even if there's an error
+            logger.error(f"Error stopping Ticos server: {e}")
+            # Force reset state
+            self.server = None
+            self.server_thread = None
             self.running = False
 
     def send_message(self, message: Dict[str, Any]) -> bool:
@@ -470,6 +472,15 @@ class TicosClient(MessageCallbackInterface):
                                 self._audio_transcript_cache["content"] += delta
 
                     # For other message types, don't store
+                    elif msg_type == "conversation.created":
+                        text_message = False
+            
+                        # Send initial memory update after conversation created
+                        self._run_in_background(
+                            self._send_memory_update,
+                            "initial_memory_update",
+                        )
+                        
                     else:
                         text_message = False
 
@@ -552,18 +563,18 @@ class TicosClient(MessageCallbackInterface):
             logger.error(f"Error handling message: {e}")
             return False
 
-    def generate_memory(self) -> None:
+    def generate_memory(self) -> bool:
         """
         Generate a memory from recent conversation history.
         This is called after a certain number of messages have been processed.
+        
+        Returns:
+            bool: True if memory was successfully generated, False otherwise
         """
         if not self.storage:
-            return
+            return False
 
         try:
-            if not self.storage:
-                return
-
             # Get the latest messages
             messages = self.storage.get_messages(0, self.context_rounds, True)
 
@@ -585,8 +596,11 @@ class TicosClient(MessageCallbackInterface):
                 )
                 self.storage.save_memory(memory)
                 logger.info(f"Generated new memory: {memory_content}")
+                return True
+            return False
         except Exception as e:
             logger.error(f"Error generating memory: {e}", exc_info=True)
+            return False
 
     def _generate_memory_and_update_session(self):
         """
@@ -594,10 +608,49 @@ class TicosClient(MessageCallbackInterface):
         This method is designed to run in a background thread.
         """
         try:
-            self.generate_memory()
+            # Update session config locally
             self.update_session_config_messages()
+
+            # Only send memory update if memory generation was successful
+            if self.generate_memory():
+                # Send memory update via WebSocket if memory exists and feature is enabled
+                self._send_memory_update()
         except Exception as e:
             logger.error(f"Error in background task: {e}", exc_info=True)
+            
+    def _send_memory_update(self):
+        """
+        Send initial memory update via WebSocket after client starts.
+        This is called once during startup to ensure the server has the latest memory.
+        """
+        try:
+            # Only proceed if memory generation is enabled on client
+            if self.config_service.get("model.enable_memory_generation") != "client":
+                logger.debug("Memory generation not enabled on client, skipping initial update")
+                return
+                
+            # Get agent ID
+            agent_id = self.config_service.get_agent_id()
+            if not agent_id:
+                logger.warning("Cannot send initial memory update: No agent_id configured")
+                return
+                
+            # Get the latest memory
+            latest_memory = self.storage.get_latest_memory()
+            last_memory_content = latest_memory["content"] if latest_memory else ""
+            
+            # Send memory update via WebSocket if memory exists
+            if last_memory_content:
+                logger.info("Sending initial memory update via WebSocket")
+                success = self.ws_client.send_user_prompt_update(agent_id, last_memory_content)
+                if success:
+                    logger.info("Initial memory update sent successfully via WebSocket")
+                else:
+                    logger.error("Failed to send initial memory update via WebSocket")
+            else:
+                logger.info("No memory available for initial update")
+        except Exception as e:
+            logger.error(f"Error sending initial memory update: {e}", exc_info=True)
 
     def _run_in_background(self, func, task_name):
         """
@@ -645,9 +698,6 @@ class TicosClient(MessageCallbackInterface):
             return
 
         try:
-            # Get the latest memory
-            latest_memory = self.storage.get_latest_memory()
-            last_memory_content = latest_memory["content"] if latest_memory else ""
 
             # Get the latest messages
             messages = self.storage.get_messages(0, self.context_rounds, True)
@@ -682,33 +732,6 @@ class TicosClient(MessageCallbackInterface):
             # Ensure the last message is from assistant
             while session_messages and session_messages[-1]["role"] != "assistant":
                 session_messages.pop()
-
-            # Add memory message if available
-            # if last_memory_content:
-            #     memory_message = {
-            #         "role": "user",
-            #         "content": f"这是你总结的我们之前沟通的记忆: \n```{last_memory_content}```\n请基于此以及我们最近的会话继续和我交流：",
-            #     }
-
-            #     # 如果 session_messages 的第一条 role 为 user，则替换它
-            #     if session_messages and session_messages[0]["role"] == "user":
-            #         session_messages[0] = memory_message
-            #     else:
-            #         # 否则将记忆消息插入到最前面
-            #         session_messages.insert(0, memory_message)
-
-            # Change the memory to last message
-            if last_memory_content:
-                memory_message = {
-                    "role": "user",
-                    "content": f"这是你总结的我们之前沟通的记忆: \n```{last_memory_content}```\n请基于此以及我们最近的会话继续和我交流：",
-                }
-
-                session_messages.append(memory_message)
-
-                session_messages.append(
-                    {"role": "assistant", "content": "OK"}
-                )
 
             # Update session_config file
             self._update_session_config_file(session_messages)

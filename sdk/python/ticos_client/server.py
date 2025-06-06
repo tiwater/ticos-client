@@ -177,7 +177,7 @@ class UnifiedServer:
                 await self._unregister_websocket(websocket)
 
     async def _register_websocket(self, websocket: WebSocket):
-        """Register a new WebSocket connection"""
+        """Register a new WebSocket connection and trigger memory update"""
         with self.websocket_lock:
             self.websocket_connections.append(websocket)
             logger.info(
@@ -216,6 +216,7 @@ class UnifiedServer:
             "response.audio_transcript.delta",
             "response.done",
             "response.audio.delta",
+            "conversation.created",
         }
 
         if msg_type in allowed_types:

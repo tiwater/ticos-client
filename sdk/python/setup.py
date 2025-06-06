@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="ticos-client",
-    version="0.5.8",  # Major version bump due to significant changes
+    version="0.6.0",  # Major version bump due to significant changes
     author="Ticos Team",
     author_email="admin@tiwater.com",
     description="A client SDK for the Ticos Agent system with HTTP and WebSocket support",
@@ -43,6 +43,7 @@ setup(
         "toml>=0.10.0,<1.0.0",
         "uvicorn[standard]>=0.15.0,<1.0.0",
         "requests>=2.26.0,<3.0.0",
+        "websocket-client>=1.5.0,<2.0.0",
     ],
     extras_require={
         "dev": [

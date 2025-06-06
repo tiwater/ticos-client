@@ -102,7 +102,7 @@ class HttpUtil:
                     api_url,
                     json=request_body,
                     headers=headers,
-                    timeout=60,  # Increased timeout to 60 seconds
+                    timeout=180,  # Increased timeout to 60 seconds
                 )
 
                 if response.status_code == 200:
