@@ -197,7 +197,7 @@ class SQLiteStorageService(StorageService):
             )
             """
         )
-        logger.info("Created messages table with latest schema")
+        logger.debug("Created messages table with latest schema")
         
         # Create memories table with the latest schema
         cursor.execute(
@@ -211,7 +211,7 @@ class SQLiteStorageService(StorageService):
             )
             """
         )
-        logger.info("Created memories table with latest schema")
+        logger.debug("Created memories table with latest schema")
         
         conn.commit()
     
@@ -229,14 +229,14 @@ class SQLiteStorageService(StorageService):
             columns = [column[1] for column in cursor.fetchall()]
             if "user_id" not in columns:
                 cursor.execute("ALTER TABLE messages ADD COLUMN user_id TEXT DEFAULT 'nobody'")
-                logger.info("Added user_id column to messages table")
+                logger.debug("Added user_id column to messages table")
             
             # Add user_id column to memories table
             cursor.execute("PRAGMA table_info(memories)")
             columns = [column[1] for column in cursor.fetchall()]
             if "user_id" not in columns:
                 cursor.execute("ALTER TABLE memories ADD COLUMN user_id TEXT DEFAULT 'nobody'")
-                logger.info("Added user_id column to memories table")
+                logger.debug("Added user_id column to memories table")
             
             conn.commit()
             current_version = 1
@@ -244,14 +244,14 @@ class SQLiteStorageService(StorageService):
         # Future migrations can be added here
         # Migration from version 1 to 2
         # if current_version < 2:
-        #     logger.info("Migrating database from version 1 to 2")
+        #     logger.debug("Migrating database from version 1 to 2")
         #     # Add migration code here
         #     conn.commit()
         #     current_version = 2
         
         # Migration from version 2 to 3
         # if current_version < 3:
-        #     logger.info("Migrating database from version 2 to 3")
+        #     logger.debug("Migrating database from version 2 to 3")
         #     # Add migration code here
         #     conn.commit()
         #     current_version = 3

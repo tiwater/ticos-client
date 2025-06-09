@@ -73,7 +73,7 @@ class ConfigService:
             if not user_session_file.exists():
                 with open(user_session_file, "w") as f:
                     json.dump(default_session_config, f, indent=2)
-                logger.info(
+                logger.debug(
                     f"Created default user session config at: {user_session_file}"
                 )
 
@@ -90,7 +90,7 @@ class ConfigService:
                 if tf_session_file.exists():
                     with open(tf_session_file, "r") as f:
                         tf_session_config = json.load(f)
-                    logger.info(f"Loaded TF session config from: {tf_session_file}")
+                    logger.debug(f"Loaded TF session config from: {tf_session_file}")
                     self._session_config = tf_session_config
 
                     # Write session config to user session file for ticos-agent later use

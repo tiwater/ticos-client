@@ -49,7 +49,7 @@ def find_tf_root_directory() -> Optional[str]:
                         ) or re.match(
                             r"^[a-zA-Z0-9_\-]+$", mount_name
                         ):  # Also accept simple names
-                            logger.info(f"Found TF card mount point: {mount_dir}")
+                            logger.debug(f"Found TF card mount point: {mount_dir}")
                             return str(mount_dir)
 
         logger.warning("No TF card mount point found")

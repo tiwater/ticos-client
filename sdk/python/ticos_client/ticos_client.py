@@ -595,7 +595,7 @@ class TicosClient(MessageCallbackInterface):
                     datetime=datetime.now().strftime(self.date_format),
                 )
                 self.storage.save_memory(memory)
-                logger.info(f"Generated new memory: {memory_content}")
+                logger.debug(f"Generated new memory: {memory_content}")
                 return True
             return False
         except Exception as e:
@@ -632,7 +632,7 @@ class TicosClient(MessageCallbackInterface):
             # Get agent ID
             agent_id = self.config_service.get_agent_id()
             if not agent_id:
-                logger.warning("Cannot send initial memory update: No agent_id configured")
+                logger.warning("Cannot send memory update: No agent_id configured")
                 return
                 
             # Get the latest memory
@@ -641,14 +641,13 @@ class TicosClient(MessageCallbackInterface):
             
             # Send memory update via WebSocket if memory exists
             if last_memory_content:
-                logger.info("Sending initial memory update via WebSocket")
                 success = self.ws_client.send_user_prompt_update(agent_id, last_memory_content)
                 if success:
-                    logger.info("Initial memory update sent successfully via WebSocket")
+                    logger.debug("Memory update sent successfully via WebSocket")
                 else:
-                    logger.error("Failed to send initial memory update via WebSocket")
+                    logger.error("Failed to send memory update via WebSocket")
             else:
-                logger.info("No memory available for initial update")
+                logger.warning("No memory available for initial update")
         except Exception as e:
             logger.error(f"Error sending initial memory update: {e}", exc_info=True)
 
@@ -777,7 +776,7 @@ class TicosClient(MessageCallbackInterface):
 
             # Rename to overwrite original
             temp_path.replace(session_config_path)
-            logger.info(f"Updated session_config with {len(messages)} messages")
+            logger.debug(f"Updated session_config with {len(messages)} messages")
 
         except Exception as e:
             logger.error(f"Error writing session_config file: {e}")
