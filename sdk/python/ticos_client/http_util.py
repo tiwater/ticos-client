@@ -64,9 +64,13 @@ class HttpUtil:
                 }
                 history_array.append(msg)
 
+            # Get max_length from config, default to 2048 if not set
+            max_response_output_tokens = config_service.get("model.max_response_output_tokens", 4096)
+            max_length = max_response_output_tokens // 2
+            
             # Build request parameters
             parameters = {
-                "max_length": 4096,
+                "max_length": max_length,
                 # "language": "zh-CN"
             }
             
@@ -79,6 +83,9 @@ class HttpUtil:
             
             # Add latest memory if available
             if last_memory:
+                # Add instruction to focus on key information and limit length
+                if isinstance(last_memory, str):
+                    last_memory = f"{last_memory}\n\nPlease ensure to summarize the key information and make sure that the newly generated long-term memory does not exceed {max_length} characters in length."
                 parameters["latest_memory"] = last_memory
 
             request_body = {

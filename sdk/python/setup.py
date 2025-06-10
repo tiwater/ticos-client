@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="ticos-client",
-    version="0.6.1",  # Major version bump due to significant changes
+    version="0.6.2",  # Major version bump due to significant changes
     author="Ticos Team",
     author_email="admin@tiwater.com",
     description="A client SDK for the Ticos Agent system with HTTP and WebSocket support",
