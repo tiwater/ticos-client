@@ -340,8 +340,6 @@ public class TicosClient implements MessageCallbackInterface {
                 memory.put("content", memoryContent);
                 memory.put("datetime", dateFormat.format(new Date()));
                 storageService.saveMemory(memory);
-                
-                LOGGER.info("Generated new memory: " + memoryContent);
             }
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Error generating memory: " + e.getMessage(), e);
