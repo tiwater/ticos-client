@@ -78,6 +78,10 @@ class HttpUtil:
             include_history = True
             if memory_instructions and "{{conversation}}" in memory_instructions:
                 include_history = False
+            
+            # Add memory_instructions as summarize_prompt if not empty
+            if memory_instructions:
+                parameters["summarize_prompt"] = memory_instructions
                 
             parameters["history_in_conversation"] = include_history
             
