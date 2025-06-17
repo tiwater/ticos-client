@@ -164,6 +164,10 @@ Creates a new Ticos client instance.
   - Set handler for conversation events
   - `handler`: Function that takes message_id, role, and content as parameters
 
+- `send_realtime_message(message: Dict[str, Any]) -> bool`
+  - Send a message to realtime server through websocket.
+  - `message`: Dictionary containing the message data
+
 ## Message Formats
 
 ### Standard Message Format
@@ -383,11 +387,17 @@ The errors the ticos client may return:
 
 {'code': 'DATABASE_ERROR', 'message': 'Storage service error, maybe the database is broken', 'type': 'health.status'}
 {'code': 'EXECUTER_ERROR', 'message': 'Server critical startup error on port 9999 (e.g., port in use) and exited.', 'type': 'health.status'}
+{'code': 'CAMERA_ERROR', 'message': 'Camera error', 'type': 'health.status'}
+{'code': 'MICROPHONE_ERROR', 'message': 'Microphone error', 'type': 'health.status'}
+{'code': 'SPEAKER_ERROR', 'message': 'Speaker error', 'type': 'health.status'}
+{'code': 'SERVER_ERROR', 'message': 'Unable to connect to cloud service', 'type': 'health.status'}
 
+If the ticos-client is not started, the ticos-agent will output log as below:
+perform_health_check::{{closure}}: Executor connection check failed, unable to send check results for other components
 
 When the ticos client is ready to work, it will return:
 
-{'code': 'READY', 'message': 'Ready for talk', 'type': 'health.status'}
+{'code': 'ALL_OK', 'message': 'Ready to start conversation', 'type': 'health.status'}
 
 
 ## Contributing

@@ -394,6 +394,18 @@ class TicosClient(MessageCallbackInterface):
             logger.error(f"Error sending message: {e}", exc_info=True)
             return False
 
+    def send_realtime_message(self, message: Dict[str, Any]) -> bool:
+        """
+        Send a message to realtime server through websocket.
+
+        Args:
+            message: Dictionary containing the message data
+
+        Returns:
+            bool: True if the message was sent successfully
+        """
+        return self.ws_client.send_message(message)
+
     def is_running(self):
         """Check if the server is running"""
         return self.running and bool(self.server)

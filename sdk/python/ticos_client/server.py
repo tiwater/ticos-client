@@ -99,9 +99,9 @@ class UnifiedServer:
                     try:
                         # Handle different message types
                         message = await websocket.receive()
-                        logger.debug(
-                            f"[WebSocket] Received message: {json.dumps(message, default=str, ensure_ascii=False)}"
-                        )
+                        # logger.debug(
+                        #     f"[WebSocket] Received message: {json.dumps(message, default=str, ensure_ascii=False)}"
+                        # )
 
                         # Handle text messages (JSON)
                         if "text" in message:

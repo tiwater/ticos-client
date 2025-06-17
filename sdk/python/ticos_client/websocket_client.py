@@ -136,6 +136,53 @@ class TicosWebSocketClient:
         except Exception as e:
             logger.error(f"Error creating WebSocket connection: {e}")
             raise
+
+    def send_message(self, message: Dict[str, Any]) -> bool:
+        """
+        Send a message to the Ticos server via WebSocket.
+        
+        Args:
+            message: Dictionary containing the message data
+            
+        Returns:
+            bool: True if the message was sent successfully, False otherwise
+        """
+        if not isinstance(message, dict):
+            logger.error("Message must be a dictionary")
+            return False
+
+        try:
+            # Get WebSocket URL and headers
+            ws_url = self._get_websocket_url()
+            headers = self._get_headers()
+
+            # Create a short-lived WebSocket connection
+            ws = websocket.create_connection(ws_url, header=headers)
+            
+            try:
+                # Ensure the message has required fields
+                if 'event_id' not in message:
+                    message['event_id'] = f"evt_{uuid.uuid4().hex[:8]}"
+                
+                # Send the message
+                ws.send(json.dumps(message))
+                logger.debug("Message sent successfully")
+                return True
+                
+            except Exception as e:
+                logger.error(f"Error sending WebSocket message: {e}")
+                return False
+                
+            finally:
+                # Always close the WebSocket connection
+                try:
+                    ws.close()
+                except Exception as e:
+                    logger.warning(f"Error closing WebSocket: {e}")
+                    
+        except Exception as e:
+            logger.error(f"Error establishing WebSocket connection: {e}")
+            return False
     
     def send_user_prompt_update(self, agent_id: str, memory_content: str) -> bool:
         """
