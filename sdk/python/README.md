@@ -385,14 +385,17 @@ Check out the [examples/python](../../examples/python) directory for complete wo
 
 The errors the ticos client may return:
 
+```
 {'code': 'DATABASE_ERROR', 'message': 'Storage service error, maybe the database is broken', 'type': 'health.status'}
 {'code': 'EXECUTER_ERROR', 'message': 'Server critical startup error on port 9999 (e.g., port in use) and exited.', 'type': 'health.status'}
 {'code': 'CAMERA_ERROR', 'message': 'Camera error', 'type': 'health.status'}
 {'code': 'MICROPHONE_ERROR', 'message': 'Microphone error', 'type': 'health.status'}
 {'code': 'SPEAKER_ERROR', 'message': 'Speaker error', 'type': 'health.status'}
 {'code': 'SERVER_ERROR', 'message': 'Unable to connect to cloud service', 'type': 'health.status'}
+```
 
 If the ticos-client is not started, the ticos-agent will output log as below:
+
 perform_health_check::{{closure}}: Executor connection check failed, unable to send check results for other components
 
 When the ticos client is ready to work, it will return:
