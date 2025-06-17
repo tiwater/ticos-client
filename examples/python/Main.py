@@ -4,7 +4,7 @@ from datetime import datetime
 
 from ticos_client import TicosClient, SaveMode
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 def message_handler(message):
@@ -35,8 +35,9 @@ def main():
     client = TicosClient(port=9999, save_mode = SaveMode.INTERNAL)
     # client = TicosClient(port=9999, save_mode = SaveMode.EXTERNAL)
     # client = TicosClient(port=9999, save_mode = SaveMode.EXTERNAL, tf_root_dir = '/Users/sawyer/.config/ticos/sim_sd')
-    client.enable_local_storage()
     client.set_message_handler(message_handler)
+    
+    client.enable_local_storage()
     client.set_motion_handler(motion_handler)
     client.set_emotion_handler(emotion_handler)
     client.set_function_call_handler(function_call_handler)

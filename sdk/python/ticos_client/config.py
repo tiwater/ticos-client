@@ -138,6 +138,7 @@ class ConfigService:
 
         except Exception as e:
             logger.error(f"Error fetching server config: {e}")
+            raise
 
     def _merge_session_with_server_config(self) -> None:
         """Merge server config with session config, with session config taking precedence."""

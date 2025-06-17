@@ -28,15 +28,35 @@ from .ticos_client_interface import MessageCallbackInterface
 logger = logging.getLogger(__name__)
 
 
+class StartupErrorLogHandler(logging.Handler):
+    def __init__(self, unified_server_instance):
+        super().__init__()
+        self.unified_server = unified_server_instance
+        self.setLevel(logging.ERROR)
+
+    def emit(self, record):
+        msg = record.getMessage()
+        # Check for specific error messages related to startup failure
+        if "Address already in use" in msg or \
+           "[Errno 48]" in msg or \
+           "error while attempting to bind" in msg:
+            # Capture the first relevant error log
+            if not self.unified_server._captured_startup_error_log:
+                self.unified_server._captured_startup_error_log = msg
+
+
 class UnifiedServer:
     """Unified server that handles both HTTP and WebSocket connections."""
 
     def __init__(
         self,
-        message_callback: MessageCallbackInterface,
+        message_callback: Optional[MessageCallbackInterface] = None,
         port: int = 9999,
         storage_service: Optional[StorageService] = None,
     ):
+        self.startup_error_message: Optional[str] = None
+        self._captured_startup_error_log: Optional[str] = None
+        self._server: Optional[uvicorn.Server] = None # Will hold the uvicorn.Server instance
         self.port = port
         self.storage = storage_service
         self.ticos_client = None
@@ -45,7 +65,6 @@ class UnifiedServer:
         self._setup_routes()
         self.websocket_connections: List[WebSocket] = []
         self.websocket_lock = threading.Lock()
-        self._server = None
         self._should_exit = False
         self.message_callback = message_callback
 
@@ -217,6 +236,7 @@ class UnifiedServer:
             "response.done",
             "response.audio.delta",
             "conversation.created",
+            "health.status"
         }
 
         if msg_type in allowed_types:
@@ -291,23 +311,84 @@ class UnifiedServer:
         # For now, we'll just return True if the server has been started
         return hasattr(self, "_is_running") and self._is_running
 
-    async def _startup(self):
-        """Startup the FastAPI server"""
+    async def _serve_uvicorn(self):
+        """Configures and runs the uvicorn server."""
         config = uvicorn.Config(
             self.app, host="0.0.0.0", port=self.port, log_level="info"
         )
+        # self._server is the uvicorn.Server instance
+        # It's crucial that self._server is assigned before await self._server.serve()
+        # so TicosClient can potentially inspect it even if serve() exits quickly.
         self._server = uvicorn.Server(config)
-        await self._server.serve()
+        
+        # The self._server.started flag will be set by uvicorn internally 
+        # if its startup sequence (binding, etc.) is successful, 
+        # before serve() blocks for the main loop or exits due to error.
+        await self._server.serve() # This can raise SystemExit if startup fails critically
 
     def run(self):
-        """Run the FastAPI server"""
-        self._is_running = True
+        """Runs the FastAPI server and handles startup error detection."""
+        self._is_running = True # Optimistic, TicosClient will verify post-startup attempt
         self._should_exit = False
+        self.startup_error_message = None # Reset for this run
+        self._captured_startup_error_log = None # Reset for this run
+
+        uvicorn_error_logger = logging.getLogger("uvicorn.error")
+        log_handler = StartupErrorLogHandler(self)
+        uvicorn_error_logger.addHandler(log_handler)
+
         try:
-            asyncio.run(self._startup())
+            asyncio.run(self._serve_uvicorn())
+            # If asyncio.run completes without SystemExit, uvicorn's serve() completed.
+            # This usually means a clean shutdown after successful run.
+            if self._server and self._server.started:
+                logger.info(f"Uvicorn server on port {self.port} shut down gracefully.")
+            elif not self.startup_error_message: # Not started and no specific error caught
+                # This case implies serve() returned but server wasn't 'started', e.g. lifespan.shutdown() called early
+                self.startup_error_message = f"Server on port {self.port} exited without confirming startup and no specific error was logged."
+                logger.warning(self.startup_error_message)
+                if hasattr(self.message_callback, 'handle_message') and self.message_callback:
+                    self.message_callback.handle_message({
+                        'code': 'EXECUTER_ERROR',
+                        'message': self.startup_error_message,
+                        'type': 'health.status'
+                    })
+
+        except SystemExit:
+            # Expected if uvicorn's startup fails critically (e.g., port in use) and calls sys.exit(1)
+            if self._server is not None and not self._server.started:
+                # It's a startup failure.
+                if self._captured_startup_error_log:
+                    specific_error = self._captured_startup_error_log
+                    if "address already in use" in specific_error.lower() or \
+                       "[errno 48]" in specific_error.lower() or \
+                       "error while attempting to bind" in specific_error.lower():
+                        self.startup_error_message = f"Server startup failed: Port {self.port} is already in use. (Detail: {specific_error})"
+                    else:
+                        self.startup_error_message = f"Server startup failed: {specific_error}"
+                else:
+                    self.startup_error_message = f"Server critical startup error on port {self.port} (e.g., port in use) and exited."
+                
+                logger.error(self.startup_error_message)
+                if hasattr(self.message_callback, 'handle_message') and self.message_callback:
+                    self.message_callback.handle_message({
+                        'code': 'EXECUTER_ERROR',
+                        'message': self.startup_error_message,
+                        'type': 'health.status'
+                    })
+            # If SystemExit occurred but server was 'started', it might be a signal-based shutdown.
+            # We are primarily concerned with startup failures where 'started' is false.
+
         except Exception as e:
-            logger.error(f"Server error: {e}")
-            raise
+            # Other unexpected errors during server run or _serve_uvicorn setup
+            self.startup_error_message = f"Server runtime error on port {self.port}: {str(e)}"
+            logger.error(self.startup_error_message, exc_info=True)
+            if hasattr(self.message_callback, 'handle_message') and self.message_callback:
+                self.message_callback.handle_message({
+                    'code': 'EXECUTER_ERROR',
+                    'message': self.startup_error_message,
+                    'type': 'health.status'
+                })
         finally:
             self._is_running = False
             self._should_exit = True

@@ -377,6 +377,19 @@ Check out the [examples/python](../../examples/python) directory for complete wo
 - Basic client setup and usage
 - Custom message handlers
 
+## Error messages
+
+The errors the ticos client may return:
+
+{'code': 'DATABASE_ERROR', 'message': 'Storage service error, maybe the database is broken', 'type': 'health.status'}
+{'code': 'EXECUTER_ERROR', 'message': 'Server critical startup error on port 9999 (e.g., port in use) and exited.', 'type': 'health.status'}
+
+
+When the ticos client is ready to work, it will return:
+
+{'code': 'READY', 'message': 'Ready for talk', 'type': 'health.status'}
+
+
 ## Contributing
 
 Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details.

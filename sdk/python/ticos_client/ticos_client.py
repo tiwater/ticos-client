@@ -149,6 +149,15 @@ class TicosClient(MessageCallbackInterface):
                 self.update_session_config_messages()
         except Exception as e:
             logger.error(f"Failed to initialize storage: {e}")
+            if hasattr(self, 'message_handler') and self.message_handler is not None:
+                try:
+                    self.message_handler({
+                        'code': 'DATABASE_ERROR',
+                        'message': 'Storage service error, maybe the database is broken',
+                        'type': 'health.status'
+                    })
+                except Exception as handler_error:
+                    logger.error(f"Error sending error message to handler: {handler_error}")
             raise
 
     def set_message_handler(self, handler: Callable[[Dict[str, Any]], None]):
@@ -205,34 +214,96 @@ class TicosClient(MessageCallbackInterface):
 
     def start(self):
         """
-        Start the Ticos server.
+        Start the Ticos server and verify its startup status.
 
         Returns:
-            bool: True if server started successfully, False otherwise
+            bool: True if server started successfully, False otherwise.
         """
         try:
-            # Create and start the server
             self.server = UnifiedServer(
                 message_callback=self, port=self.port, storage_service=self.storage
             )
 
-            def run_server():
-                try:
-                    self.server.run()
-                except Exception as e:
-                    logger.error(f"Server error: {e}")
-                    self.running = False
+            def run_server_thread_target():
+                # This function is the target for the server thread.
+                # UnifiedServer.run() will handle its own exceptions and call message_callback.
+                self.server.run()
+                logger.info(f"Server thread for port {self.port} has completed its execution.")
 
-            self.server_thread = Thread(target=run_server, daemon=True)
+            self.server_thread = Thread(target=run_server_thread_target, daemon=True, name=f"TicosServerThread-{self.port}")
             self.server_thread.start()
-            self.running = True
 
-            logger.info(f"Ticos server started on port {self.port}")
-            return True
+            # Wait for a short period to allow the server to attempt startup.
+            # This duration might need tuning based on typical startup times.
+            # 1.5 seconds should be enough for uvicorn to bind or fail.
+            time.sleep(1.5) 
+
+            # Check 1: UnifiedServer detected a startup error and set startup_error_message.
+            # In this case, UnifiedServer.run() should have already called self.handle_message.
+            if self.server.startup_error_message:
+                logger.error(f"TicosClient: Server startup failed. Reported error: {self.server.startup_error_message}")
+                self.running = False
+                return False
+
+            # Check 2: Server thread died unexpectedly without setting startup_error_message.
+            if not self.server_thread.is_alive():
+                error_msg = f"TicosClient: Server thread for port {self.port} terminated unexpectedly without a specific startup error message."
+                logger.error(error_msg)
+                if hasattr(self, 'message_handler') and self.message_handler:
+                    try:
+                        self.message_handler({
+                            'code': 'EXECUTER_ERROR',
+                            'message': error_msg,
+                            'type': 'health.status'
+                        })
+                    except Exception as handler_error:
+                        logger.error(f"Error sending unexpected termination message to handler: {handler_error}")
+                self.running = False
+                return False
+
+            # Check 3: Server thread is alive, now check uvicorn.Server's 'started' state.
+            # self.server._server is the uvicorn.Server instance, set within UnifiedServer._serve_uvicorn
+            uvicorn_instance = self.server._server
+            if uvicorn_instance is not None and uvicorn_instance.started:
+                logger.info(f"Ticos server confirmed started successfully on port {self.port}")
+                self.running = True
+                return True
+            else:
+                # Thread is alive, but uvicorn hasn't confirmed 'started' or instance is None.
+                # This could mean it's still trying, or stuck, or failed without SystemExit 
+                # and without setting startup_error_message (less likely with current UnifiedServer.run).
+                status_info = "uvicorn instance not available" if uvicorn_instance is None else f"uvicorn.started is {uvicorn_instance.started}"
+                error_msg = f"TicosClient: Failed to confirm server startup on port {self.port} within the allocated time. ({status_info})"
+                logger.error(error_msg)
+                # UnifiedServer might still be running and might report an error later if it was just slow,
+                # but TicosClient needs to make a decision.
+                if hasattr(self, 'message_handler') and self.message_handler:
+                    try:
+                        self.message_handler({
+                            'code': 'EXECUTER_ERROR',
+                            'message': error_msg,
+                            'type': 'health.status'
+                        })
+                    except Exception as handler_error:
+                        logger.error(f"Error sending 'failed to confirm startup' message to handler: {handler_error}")
+                self.running = False
+                # We might want to try and signal the server thread to stop here if it's truly stuck.
+                # For now, just returning False.
+                return False
 
         except Exception as e:
-            logger.error(f"Failed to start Ticos server: {e}")
+            # This catches errors in TicosClient.start() itself, before thread launch or during checks.
+            logger.error(f"TicosClient: Exception during server start sequence for port {self.port}: {e}", exc_info=True)
             self.running = False
+            if hasattr(self, 'message_handler') and self.message_handler:
+                try:
+                    self.message_handler({
+                        'code': 'EXECUTER_ERROR',
+                        'message': f'TicosClient: Critical error during server initialization: {str(e)}',
+                        'type': 'health.status'
+                    })
+                except Exception as handler_error:
+                    logger.error(f"Error sending critical initialization error message to handler: {handler_error}")
             return False
 
     def stop(self):
