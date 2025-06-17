@@ -15,7 +15,7 @@ else:  # Unix-like systems (Linux, macOS)
 
 from ticos_client import TicosClient, SaveMode
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 client: TicosClient = None
