@@ -666,7 +666,6 @@ class TicosClient(MessageCallbackInterface):
                     datetime=datetime.now().strftime(self.date_format),
                 )
                 self.storage.save_memory(memory)
-                logger.debug(f"Generated new memory: {memory_content}")
                 return True
             return False
         except Exception as e:
@@ -851,65 +850,6 @@ class TicosClient(MessageCallbackInterface):
 
         except Exception as e:
             logger.error(f"Error writing session_config file: {e}")
-
-    def _summarize_conversation(
-        self, messages: List[Dict[str, Any]], last_memory: str
-    ) -> str:
-        """
-        Summarize a conversation to generate a memory.
-
-        Args:
-            messages: List of recent messages
-            last_memory: The content of the most recent memory, if any
-
-        Returns:
-            str: A summary of the conversation
-        """
-        try:
-            # This is a simplified implementation
-            # In a real implementation, you might want to call an external API
-            # or use a more sophisticated summarization algorithm
-
-            # Extract message contents
-            contents = []
-            for msg in messages:
-                try:
-                    # Convert Message object to dictionary
-                    content = (
-                        json.loads(msg.content)
-                        if isinstance(msg.content, str)
-                        else msg.content
-                    )
-                    if isinstance(content, dict) and "arguments" in content:
-                        if "content" in content["arguments"]:
-                            contents.append(
-                                f"{msg.role.value}: {content['arguments']['content']}"
-                            )
-                        elif "text" in content["arguments"]:
-                            contents.append(
-                                f"{msg.role.value}: {content['arguments']['text']}"
-                            )
-                except Exception as e:
-                    logger.warning(f"Error processing message for summarization: {e}")
-
-            if not contents:
-                return ""
-
-            # Simple summarization: combine the messages
-            summary = "Recent conversation: " + "; ".join(
-                contents[-3:]
-            )  # Just take the last 3 messages
-
-            # Add context from the last memory if available
-            if last_memory:
-                summary = f"Previous context: {last_memory}. {summary}"
-
-            return summary[:500]  # Limit length
-
-        except Exception as e:
-            logger.error(f"Error summarizing conversation: {e}")
-            return ""
-
 
 class DefaultMessageHandler:
     """
