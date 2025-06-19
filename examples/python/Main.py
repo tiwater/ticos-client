@@ -69,7 +69,6 @@ def send_realtime_message():
     except Exception as e:
         logger.error(f"Error in delayed send: {e}")
 
-
 def is_key_pressed():
     """Check if a key is pressed. Returns the key if pressed, None otherwise."""
     if os.name == 'nt':  # Windows
@@ -135,6 +134,16 @@ def main():
                     break
                 elif key == 'm':
                     send_realtime_message()
+                elif key == 'c':
+                    # Send cancel response message
+                    try:
+                        cancel_message = {
+                            "type": "response.cancel"
+                        }
+                        client.send_realtime_message(cancel_message)
+                        logger.info(f"Sent cancel message: {cancel_message}")
+                    except Exception as e:
+                        logger.error(f"Error sending cancel message: {e}")
             
             # Log status periodically
             current_time = time.time()
