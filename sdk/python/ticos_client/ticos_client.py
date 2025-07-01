@@ -310,25 +310,32 @@ class TicosClient(MessageCallbackInterface):
         """Stop the server and clean up resources."""
         try:
             if self.server:
-                # Create a new event loop for the current thread if needed
-                try:
-                    loop = asyncio.get_event_loop()
-                except RuntimeError:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
+                # 设置标志，通知服务器应该退出
+                if hasattr(self.server, '_should_exit'):
+                    self.server._should_exit = True
+                
+                # 如果服务器有 uvicorn 实例，也设置其退出标志
+                if hasattr(self.server, '_server') and self.server._server:
+                    self.server._server.should_exit = True
+                    # 尝试调用 uvicorn 服务器的 shutdown 方法
+                    try:
+                        if hasattr(self.server._server, 'shutdown'):
+                            # Uvicorn 的 shutdown 方法是一个协程，需要在事件循环中运行
+                            import asyncio
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            loop.run_until_complete(self.server._server.shutdown())
+                            loop.close()
+                    except Exception as e:
+                        logger.error(f"Error calling uvicorn shutdown: {e}")
 
-                # Run the shutdown coroutine
-                if loop.is_running():
-                    future = asyncio.run_coroutine_threadsafe(
-                        self.server.shutdown(), loop
-                    )
-                    future.result(timeout=5)  # Wait for up to 5 seconds
-                else:
-                    loop.run_until_complete(self.server.shutdown())
-
-            # Wait for server thread to finish
+            # Wait for server thread to finish - this allows the server's own event loop to handle shutdown
             if self.server_thread and self.server_thread.is_alive():
-                self.server_thread.join(timeout=5)
+                self.server_thread.join(timeout=10)  # Increased timeout to allow graceful shutdown
+                if self.server_thread.is_alive():
+                    logger.warning("Server thread did not terminate within timeout. Unable to forcibly terminate threads in Python.")
+                    # 在 Python 中无法强制终止线程，但可以记录警告
+                    # 如果需要更强的终止，可以考虑使用 multiprocessing 而不是 threading
 
             # Close WebSocket client if active
             if hasattr(self, 'ws_client'):
