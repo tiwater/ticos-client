@@ -1,6 +1,5 @@
 import time
 import logging
-import threading
 from datetime import datetime, timedelta
 import sys
 import os
@@ -134,6 +133,10 @@ def main():
                     break
                 elif key == 'm':
                     send_realtime_message()
+                elif key == 'p':
+                    client.stop()
+                elif key == 's':
+                    client.start()
                 elif key == 'c':
                     # Send cancel response message
                     try:
