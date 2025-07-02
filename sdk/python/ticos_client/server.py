@@ -235,6 +235,7 @@ class UnifiedServer:
             "response.audio_transcript.delta",
             "response.done",
             "response.audio.delta",
+            "response.video.done",
             "conversation.created",
             "health.status"
         }
