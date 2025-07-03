@@ -86,6 +86,11 @@ class StorageService(ABC):
         """Get memories with pagination"""
         raise NotImplementedError
 
+    @abstractmethod
+    def close(self) -> None:
+        """Close the storage service and release resources."""
+        pass
+
 
 class SQLiteStorageService(StorageService):
     """SQLite implementation of StorageService"""
@@ -99,6 +104,7 @@ class SQLiteStorageService(StorageService):
         """
         self.db_path = None
         self.store_root_dir = None
+        self.conn = None
 
     def set_store_root_dir(self, tf_root_dir: str) -> None:
         """
@@ -111,6 +117,10 @@ class SQLiteStorageService(StorageService):
 
     def initialize(self) -> None:
         """Initialize the storage service."""
+        if self.conn:
+            logger.warning("Storage service already initialized.")
+            return
+
         try:
             # Create config directory if it doesn't exist
             if self.store_root_dir:
@@ -120,14 +130,13 @@ class SQLiteStorageService(StorageService):
 
             config_dir.mkdir(parents=True, exist_ok=True)
 
-            # Set database path
+            # Set database path and establish connection
             self.db_path = str(config_dir / "ticos.db")
-            
-            # Check if database exists
             db_exists = Path(self.db_path).exists()
+            self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
             
             # Initialize database tables
-            with sqlite3.connect(self.db_path) as conn:
+            with self.conn as conn:
                 cursor = conn.cursor()
                 
                 # Create version table if it doesn't exist
@@ -159,7 +168,6 @@ class SQLiteStorageService(StorageService):
                         """,
                         (self.CURRENT_DB_VERSION, datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
                     )
-                    conn.commit()
                 # If database exists but needs upgrading, apply incremental migrations
                 elif current_version < self.CURRENT_DB_VERSION:
                     logger.info(f"Upgrading database from version {current_version} to {self.CURRENT_DB_VERSION}")
@@ -173,11 +181,13 @@ class SQLiteStorageService(StorageService):
                         """,
                         (self.CURRENT_DB_VERSION, datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
                     )
-                    conn.commit()
                     
                 logger.info(f"Storage initialized successfully (DB version: {self.CURRENT_DB_VERSION})")
         except Exception as e:
             logger.error(f"Failed to initialize storage: {e}")
+            if self.conn:
+                self.conn.close()
+                self.conn = None
             raise
 
     def _create_latest_schema(self, conn):
@@ -257,8 +267,13 @@ class SQLiteStorageService(StorageService):
         #     current_version = 3
     
     def _get_connection(self):
-        """Get a new database connection"""
-        return sqlite3.connect(self.db_path)
+        """Get the existing database connection."""
+        if not self.conn:
+            raise RuntimeError(
+                "Storage service is not initialized or has been closed. "
+                "Please call initialize() before using."
+            )
+        return self.conn
 
     def save_message(self, message: Message) -> bool:
         """Save a message to storage"""
@@ -515,3 +530,13 @@ class SQLiteStorageService(StorageService):
         except Exception as e:
             logger.error(f"Failed to get memories: {e}")
             return []
+
+    def close(self) -> None:
+        """Close the database connection."""
+        if self.conn:
+            try:
+                self.conn.close()
+                self.conn = None
+                logger.info("Database connection closed successfully.")
+            except Exception as e:
+                logger.error(f"Error closing database connection: {e}")

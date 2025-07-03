@@ -341,19 +341,32 @@ class TicosClient(MessageCallbackInterface):
             if hasattr(self, 'ws_client'):
                 self.ws_client.close()
 
+            # Wait for any background tasks to complete, with a timeout
+            with self._background_task_lock:
+                tasks_to_wait_for = list(self._background_tasks)
+                self._background_tasks.clear()
+
+            if tasks_to_wait_for:
+                logger.info(f"Waiting for {len(tasks_to_wait_for)} background tasks to complete...")
+                for task in tasks_to_wait_for:
+                    task.join(timeout=15)  # Wait for each task for up to 15 seconds
+                    if task.is_alive():
+                        logger.warning(
+                            f"Background task '{task.name}' did not complete within the timeout."
+                        )
+                logger.info("Finished waiting for background tasks.")
+
             # Clean up resources
             self.server = None
             self.server_thread = None
             self.running = False
 
-            # Cancel any background tasks
-            with self._background_task_lock:
-                for task in self._background_tasks:
-                    if task.is_alive():
-                        # We can't forcibly terminate threads in Python,
-                        # but we can set a flag that the thread should check
-                        pass
-                self._background_tasks = []
+            # Close storage service
+            if self.storage:
+                try:
+                    self.storage.close()
+                except Exception as e:
+                    logger.error(f"Error closing storage service: {e}")
 
             logger.info("Ticos server stopped")
 
@@ -684,7 +697,9 @@ class TicosClient(MessageCallbackInterface):
                     content=memory_content,
                     datetime=datetime.now().strftime(self.date_format),
                 )
-                self.storage.save_memory(memory)
+                if self.running:
+                    # Avoid save on stop
+                    self.storage.save_memory(memory)
                 return True
             return False
         except Exception as e:
