@@ -1,4 +1,5 @@
 import os
+import time
 import toml
 import json
 import logging
@@ -101,44 +102,79 @@ class ConfigService:
             logger.error(f"Failed to load session config: {e}")
             raise
 
-    def _fetch_server_config(self) -> None:
-        """Fetch configuration from server based on agent_id."""
-        try:
-            agent_id = self.get_agent_id()
-            if not agent_id:
-                logger.warning("No agent_id configured, skipping server config fetch")
-                return
+    def _fetch_server_config(self, max_retries: int = 2, timeout: float = 10.0) -> None:
+        """
+        Fetch configuration from server based on agent_id.
 
-            api_key = self.get_api_key()
-            if not api_key:
-                logger.warning("No API key configured, skipping server config fetch")
-                return
+        Args:
+            max_retries: Maximum number of retry attempts
+            timeout: Request timeout in seconds
 
-            url = f"https://api.ticos.ai/v1/agents/{agent_id}"
-            headers = {"Authorization": f"Bearer {api_key}"}
+        Raises:
+            Exception: If failed to fetch config after retries or invalid configuration
+        """
+        agent_id = self.get_agent_id()
+        if not agent_id:
+            logger.warning("No agent_id configured, skipping server config fetch")
+            return
 
-            response = requests.get(url, headers=headers)
+        api_key = self.get_api_key()
+        if not api_key:
+            logger.warning("No API key configured, skipping server config fetch")
+            return
 
-            if response.status_code == 200:
-                server_data = response.json()
-                if "config" in server_data:
-                    self._server_config = server_data["config"]
-                    logger.info(
-                        f"Successfully fetched server config for agent_id: {agent_id}"
-                    )
+        url = f"https://api.ticos.ai/v1/agents/{agent_id}"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "User-Agent": "Ticos-Client/1.0"
+        }
 
-                    # Merge server config with session config (local has higher priority)
-                    self._merge_session_with_server_config()
-                else:
-                    logger.warning("Server response does not contain config")
-            else:
-                raise Exception(
-                    f"Failed to fetch server config. Status code: {response.status_code}"
+        last_error = None
+        for attempt in range(max_retries + 1):
+            try:
+                response = requests.get(
+                    url,
+                    headers=headers,
+                    timeout=timeout
                 )
+                response.raise_for_status()
+                
+                server_data = response.json()
+                if not isinstance(server_data, dict) or "config" not in server_data:
+                    logger.warning("Invalid server response format or missing config")
+                    return
 
-        except Exception as e:
-            logger.error(f"Error fetching server config: {e}")
-            raise
+                self._server_config = server_data["config"]
+                logger.info(f"Successfully fetched server config for agent_id: {agent_id}")
+                
+                # Merge server config with session config (local has higher priority)
+                self._merge_session_with_server_config()
+                return
+                
+            except requests.exceptions.RequestException as e:
+                last_error = e
+                if attempt < max_retries:
+                    retry_delay = 1 * (2 ** attempt)  # Exponential backoff
+                    logger.warning(
+                        f"Attempt {attempt + 1}/{max_retries} failed: {e}. "
+                        f"Retrying in {retry_delay} seconds..."
+                    )
+                    time.sleep(retry_delay)
+                continue
+            except (ValueError, KeyError) as e:
+                last_error = e
+                logger.error(f"Failed to parse server response: {e}")
+                break
+
+        # If we get here, all retries failed
+        error_msg = (
+            f"Failed to fetch server configuration after {max_retries + 1} attempts. "
+            "Please check your network connection and verify that:"
+            "\n1. The API key is valid"
+            f"\n2. The agent_id '{agent_id}' exists"
+            "\n3. You have proper network connectivity to api.ticos.ai"
+        )
+        raise Exception(error_msg) from last_error
 
     def _merge_session_with_server_config(self) -> None:
         """Merge server config with session config, with session config taking precedence."""
