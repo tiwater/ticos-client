@@ -212,6 +212,7 @@ class ConfigService:
                 or path.startswith("speech.")
                 or path.startswith("hearing.")
                 or path == "agent_id"
+                or path == "variables"
             ):
                 if not self._session_config:
                     return default

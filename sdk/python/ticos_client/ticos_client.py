@@ -75,6 +75,7 @@ class TicosClient(MessageCallbackInterface):
         self.context_rounds = self.config_service.get_context_rounds()
         self.date_format = "%Y-%m-%d %H:%M:%S"
 
+        self.update_variables()
         # Initialize background task management
         self._background_task_lock = threading.Lock()
         self._background_tasks = []
@@ -841,6 +842,22 @@ class TicosClient(MessageCallbackInterface):
 
         except Exception as e:
             logger.error(f"Error updating session_config messages: {e}")
+
+    def update_variables(self, priority="medium"):
+        """
+        Update or delete variables for the device by sending them to the server.
+        
+        This method sends the variables from session_config to the server via HTTP POST request.
+        Variables with null values will be deleted, others will be updated or added.
+        
+        Args:
+            priority: Priority level for the update operation ('low', 'medium', 'high')
+                      Default is 'medium'
+        
+        Returns:
+            bool: True if the update was successful, False otherwise
+        """
+        return HttpUtil.update_variables(self.config_service, priority)
 
     def _update_session_config_file(self, messages):
         """

@@ -9,7 +9,74 @@ logger = logging.getLogger(__name__)
 
 
 class HttpUtil:
-    """Utility class for making HTTP requests"""
+    """Utility class for making HTTP requests"""    
+    
+    @staticmethod
+    def update_variables(config_service, priority="medium"):
+        """
+        Update or delete variables for the device by sending them to the server.
+        
+        This method sends the variables from session_config to the server via HTTP POST request.
+        Variables with null values will be deleted, others will be updated or added.
+        
+        Args:
+            config_service: ConfigService instance to use for API configuration
+            priority: Priority level for the update operation ('low', 'medium', 'high')
+                      Default is 'medium'
+        
+        Returns:
+            bool: True if the update was successful, False otherwise
+        """
+        try:            
+            variables = config_service.get('variables', {})
+            if not variables:
+                logger.warning("Variables section is empty in session_config")
+                return False
+            
+            # Get API key for authentication
+            api_key = config_service.get_api_key()
+            if not api_key:
+                logger.error("API key is not configured")
+                return False
+            
+            # Get API host and convert WebSocket URL to HTTP URL if needed
+            api_host = config_service.get_api_host()
+            if api_host.startswith('wss://'):
+                api_base = api_host.replace('wss://', 'https://')
+            elif api_host.startswith('ws://'):
+                api_base = api_host.replace('ws://', 'http://')
+            else:
+                api_base = f"https://{api_host}"
+            
+            # Build API URL
+            api_url = f"{api_base}/variables"
+            if priority:
+                api_url += f"?priority={priority}"
+            
+            # Prepare headers with authentication
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}"
+            }
+            
+            # Send POST request to update variables
+            response = requests.post(
+                api_url,
+                json=variables,
+                headers=headers,
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                logger.info(f"Successfully updated variables with priority '{priority}'")
+                return True
+            else:
+                logger.error(f"Failed to update variables. Status code: {response.status_code}, Response: {response.text}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error updating variables: {e}", exc_info=True)
+            return False
 
     @staticmethod
     def summarize_conversation(
