@@ -132,7 +132,7 @@ class ConfigService:
                 else:
                     logger.warning("Server response does not contain config")
             else:
-                logger.warning(
+                raise Exception(
                     f"Failed to fetch server config. Status code: {response.status_code}"
                 )
 
