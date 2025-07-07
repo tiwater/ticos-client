@@ -211,6 +211,7 @@ class ConfigService:
                 path.startswith("model.")
                 or path.startswith("speech.")
                 or path.startswith("hearing.")
+                or path.startswith("knowledge.")
                 or path == "agent_id"
                 or path == "variables"
             ):
