@@ -44,6 +44,7 @@ setup(
         "uvicorn[standard]>=0.15.0,<1.0.0",
         "requests>=2.26.0,<3.0.0",
         "websocket-client>=1.5.0,<2.0.0",
+        "httpx>=0.23.0,<1.0.0",
     ],
     extras_require={
         "dev": [

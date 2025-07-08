@@ -59,7 +59,7 @@ public class HttpUtil {
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json");
-            conn.setRequestProperty("Authorization", "Bearer " + apiKey);
+            conn.setRequestProperty("Proxy-Authorization", "Bearer " + apiKey);
             conn.setDoOutput(true);
             
             // Send request

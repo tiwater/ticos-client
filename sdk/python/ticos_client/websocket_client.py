@@ -50,7 +50,7 @@ class TicosWebSocketClient:
         """
         api_key = self.config_service.get_api_key()
         return [
-            f"Authorization: Bearer {api_key}",
+            f"Proxy-Authorization: Bearer {api_key}",
             "OpenAI-Beta: realtime=v1"
         ]
     

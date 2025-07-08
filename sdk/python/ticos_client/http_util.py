@@ -1,6 +1,6 @@
 import json
-import requests
-from typing import List, Dict, Any
+import httpx
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 import logging
 from .config import ConfigService
@@ -52,20 +52,22 @@ class HttpUtil:
             api_url = f"{api_base}/variables"
             if priority:
                 api_url += f"?priority={priority}"
-            
+
             # Prepare headers with authentication
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}"
+                "Proxy-Authorization": f"Bearer {api_key}"
             }
             
-            # Send POST request to update variables
-            response = requests.post(
-                api_url,
-                json=variables,
-                headers=headers,
-                timeout=30
-            )
+            # Send POST request to update variables using httpx with redirect support
+            with httpx.Client(follow_redirects=True) as client:
+                response = client.post(
+                    api_url,
+                    json=variables,
+                    headers=headers,
+                    timeout=30.0,
+                    follow_redirects=True
+                )
             
             if response.status_code == 200:
                 logger.info(f"Successfully updated variables with priority '{priority}'")
@@ -111,12 +113,12 @@ class HttpUtil:
 
             # Build API URL with agent_id using configured host
             api_host = config_service.get_api_host()
-            if "stardust" in api_host:
-                # Convert wss:// to https://
+            if api_host.startswith('wss://'):
                 api_base = api_host.replace('wss://', 'https://')
+            elif api_host.startswith('ws://'):
+                api_base = api_host.replace('ws://', 'http://')
             else:
-                # Use default stardust host
-                api_base = "https://stardust.ticos.cn"
+                api_base = f"https://{api_host}"
             
             api_url = f"{api_base}/summarize?agent_id={agent_id}"
 
@@ -171,7 +173,7 @@ class HttpUtil:
             # Prepare request
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}",
+                "Proxy-Authorization": f"Bearer {api_key}",
             }
 
             # Log request details
@@ -180,35 +182,37 @@ class HttpUtil:
             )
 
             try:
-                response = requests.post(
-                    api_url,
-                    json=request_body,
-                    headers=headers,
-                    timeout=180,  # Increased timeout to 60 seconds
-                )
-
-                if response.status_code == 200:
-                    response_data = response.json()
-
-                    summary_array = response_data.get("summary", [])
-                    # Join all summary parts with spaces
-                    summary = " ".join(summary_array)
-                    logger.debug(f"Generated summary: {summary}")
-                    return summary
-                else:
-                    error_msg = (
-                        f"Failed to get summary. Status code: {response.status_code}"
+                with httpx.Client(follow_redirects=True) as client:
+                    response = client.post(
+                        api_url,
+                        json=request_body,
+                        headers=headers,
+                        timeout=180.0,  # Increased timeout to 180 seconds
+                        follow_redirects=True
                     )
-                    try:
-                        error_details = response.json()
-                        error_msg += f"\nError details: {json.dumps(error_details, indent=2, ensure_ascii=False)}"
-                    except:
-                        error_msg += f"\nResponse text: {response.text[:500]}"
 
-                    logger.warning(error_msg)
-                    return None
+                    if response.status_code == 200:
+                        response_data = response.json()
 
-            except requests.exceptions.RequestException as e:
+                        summary_array = response_data.get("summary", [])
+                        # Join all summary parts with spaces
+                        summary = " ".join(summary_array)
+                        logger.debug(f"Generated summary: {summary}")
+                        return summary
+                    else:
+                        error_msg = (
+                            f"Failed to get summary. Status code: {response.status_code}"
+                        )
+                        try:
+                            error_details = response.json()
+                            error_msg += f"\nError details: {json.dumps(error_details, indent=2, ensure_ascii=False)}"
+                        except:
+                            error_msg += f"\nResponse text: {response.text[:500]}"
+
+                        logger.warning(error_msg)
+                        return None
+
+            except httpx.RequestError as e:
                 logger.error(f"Request failed: {str(e)}", exc_info=True)
                 return None
 
