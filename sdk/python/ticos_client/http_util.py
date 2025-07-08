@@ -143,6 +143,7 @@ class HttpUtil:
             
             # Set default memory instructions if empty or None
             if not memory_instructions:
+                logger.warning("No memory instructions found in session_config, using default memory instructions")
                 memory_instructions = "You are an AI companion. Please generate long-term memory based on previous memory \n```\n{{latest_memory}}\n```\n and latest conversations:\n```\n {{conversation}} \n```\nwith the user to facilitate better communication in the future."
             
             # Determine if history should be included in conversation
