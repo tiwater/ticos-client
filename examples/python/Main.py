@@ -24,7 +24,10 @@ last_dance_message_time: datetime = datetime.min
 DANCE_MESSAGE_INTERVAL = timedelta(seconds=30)
 
 def message_handler(message):
-    logger.info(f"Received message: {message}")
+    if not isinstance(message, dict) or message.get("type") != "response.video.done":
+        logger.info(f"Received message: {message}")
+    else:
+        logger.debug(f"Received message: {message}")
 
 def motion_handler(parameters):
     logger.info(f"Received motion command with parameters: {parameters}")

@@ -32,6 +32,39 @@ The SDK uses two configuration files:
    - Location (INTERNAL mode): `~/.config/ticos/session_config`
    - Location (EXTERNAL mode): `/path/to/tf_card/.config/ticos/session_config`
    - Contains session-specific settings and state
+   - Format:
+     ```json
+     {
+         "agent_id": "26",
+         "model": {
+             // Overrides agent's model configuration
+         },
+         "speech": {
+             // Overrides agent's speech configuration
+         },
+         "vision": {
+             // Overrides agent's vision configuration
+         },
+         "hearing": {
+             // Overrides agent's hearing configuration
+         },
+         "knowledge": {
+             // Overrides agent's knowledge configuration
+         },
+         "variables": {
+             "var1": "val1",
+             "var2": "val2"
+         },
+         "extended_properties": {
+             "memory": ""
+         }
+     }
+     ```
+   - All fields except `agent_id` are optional
+   - If `model`, `speech`, `vision`, `hearing`, or `knowledge` sections are provided, they will override the corresponding configurations from the cloud agent
+   - `variables` section contains key-value pairs that will replace variables in the agent prompt (e.g., `{{terminal.var1}}` will be replaced with `val1`)
+   - `extended_properties` contains additional configuration options with special meanings:
+     - `memory`: Content that will be appended to the system-generated memory
 
 ## Quick Start
 

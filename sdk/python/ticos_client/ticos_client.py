@@ -744,6 +744,19 @@ class TicosClient(MessageCallbackInterface):
             latest_memory = self.storage.get_latest_memory()
             last_memory_content = latest_memory["content"] if latest_memory else ""
             
+            # Append extended_properties.memory from session config if exists
+            try:
+                extended_memory = self.config_service.get("extended_properties.memory", "")
+                if extended_memory:
+                    if isinstance(extended_memory, (dict, list)):
+                        extended_memory = json.dumps(extended_memory, ensure_ascii=False)
+                    if last_memory_content:
+                        last_memory_content = f"{last_memory_content}\n\n{extended_memory}"
+                    else:
+                        last_memory_content = extended_memory
+            except Exception as e:
+                logger.warning(f"Failed to append extended memory: {e}")
+            
             # Send memory update via WebSocket if memory exists
             if last_memory_content:
                 success = self.ws_client.send_user_prompt_update(agent_id, last_memory_content)
