@@ -108,6 +108,7 @@ def main():
     # client = TicosClient(port=9999, save_mode=SaveMode.EXTERNAL, tf_root_dir='/Users/sawyer/.config/ticos/sim_sd')
     client.set_message_handler(message_handler)
     
+    # client.enable_local_storage(db_filename="scripts/role1.db")
     client.enable_local_storage()
     client.set_motion_handler(motion_handler)
     client.set_emotion_handler(emotion_handler)
