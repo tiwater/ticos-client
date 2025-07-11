@@ -126,19 +126,22 @@ class TicosClient(MessageCallbackInterface):
                 "content": "",
             }
 
-    def enable_local_storage(self, storage_service: Optional[StorageService] = None):
+    def enable_local_storage(self, storage_service: Optional[StorageService] = None, db_filename: Optional[str] = None):
         """
         Enable local storage with the provided storage service.
         If no storage service is provided, a default SQLiteStorageService will be used.
 
         Args:
             storage_service: Optional custom storage service implementation
+            db_filename: Optional database filename. If provided as absolute path, it will be used as is.
+                         If provided as relative path, it will be relative to tf_root_dir/.config/ticos/.
+                         If None, the default 'ticos.db' will be used.
         """
         if storage_service is None:
             storage_service = SQLiteStorageService()
 
-        # Set storage directory based on save mode
-        storage_service.set_store_root_dir(self.tf_root_dir)
+        # Set storage directory based on save mode and pass db_filename if provided
+        storage_service.set_store_root_dir(self.tf_root_dir, db_filename)
 
         try:
             storage_service.initialize()

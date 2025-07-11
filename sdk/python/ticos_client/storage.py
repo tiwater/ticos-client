@@ -15,12 +15,15 @@ class StorageService(ABC):
     """Interface defining storage operations for messages and memories."""
 
     @abstractmethod
-    def set_store_root_dir(self, tf_root_dir: str) -> None:
+    def set_store_root_dir(self, tf_root_dir: str, db_filename: Optional[str] = None) -> None:
         """
-        Set the root directory for storage.
+        Set the root directory for storage and optionally specify a database filename.
 
         Args:
             tf_root_dir: The root directory of the TF card
+            db_filename: Optional database filename. If provided as absolute path, it will be used as is.
+                         If provided as relative path, it will be relative to tf_root_dir/.config/ticos/.
+                         If None, the default 'ticos.db' will be used.
         """
         pass
 
@@ -104,16 +107,21 @@ class SQLiteStorageService(StorageService):
         """
         self.db_path = None
         self.store_root_dir = None
+        self.db_filename = None
         self.conn = None
 
-    def set_store_root_dir(self, tf_root_dir: str) -> None:
+    def set_store_root_dir(self, tf_root_dir: str, db_filename: Optional[str] = None) -> None:
         """
-        Set the root directory for storage.
+        Set the root directory for storage and optionally specify a database filename.
 
         Args:
             tf_root_dir: The root directory of the TF card
+            db_filename: Optional database filename. If provided as absolute path, it will be used as is.
+                         If provided as relative path, it will be relative to tf_root_dir/.config/ticos/.
+                         If None, the default 'ticos.db' will be used.
         """
         self.store_root_dir = tf_root_dir
+        self.db_filename = db_filename
 
     def initialize(self) -> None:
         """Initialize the storage service."""
@@ -130,8 +138,21 @@ class SQLiteStorageService(StorageService):
 
             config_dir.mkdir(parents=True, exist_ok=True)
 
-            # Set database path and establish connection
-            self.db_path = str(config_dir / "ticos.db")
+            # Set database path based on db_filename parameter
+            if self.db_filename:
+                if os.path.isabs(self.db_filename):
+                    # If db_filename is an absolute path, use it directly
+                    self.db_path = self.db_filename
+                else:
+                    # If db_filename is a relative path, make it relative to config_dir
+                    self.db_path = str(config_dir / self.db_filename)
+                # Ensure parent directory exists
+                Path(os.path.dirname(self.db_path)).mkdir(parents=True, exist_ok=True)
+            else:
+                # Use default database path
+                self.db_path = str(config_dir / "ticos.db")
+                
+            logger.info(f"Using database at: {self.db_path}")
             db_exists = Path(self.db_path).exists()
             self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
             
