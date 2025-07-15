@@ -49,7 +49,7 @@ def conversation_handler(message_id, role, content):
     """
     logger.info(f"Conversation event - Message ID: {message_id}, Role: {role}, Content: {content}")
 
-def send_realtime_message():
+def send_system_message(text):
     
     message = {
         "type": "response.create",
@@ -58,7 +58,7 @@ def send_realtime_message():
                 "role": "system",
                 "content": [{
                     "type": "input_text",
-                    "text": "你是一个人形机器人，刚才跳完了舞。请口语化的简短的说你跳完了舞并与客户互动。"
+                    "text": text
                 }]
             }]
         }
@@ -67,7 +67,33 @@ def send_realtime_message():
     global client
     try:
         client.send_realtime_message(message)
-        logger.info(f"Sent realtime message for dance request. Message: {message}")
+        logger.info(f"Sent realtime message for system request. Message: {message}")
+    except Exception as e:
+        logger.error(f"Error in delayed send: {e}")
+
+def send_customized_message(text, instructions = None, voice = None):
+    
+    message = {
+        "type": "response.create",
+        "response": {
+            "input": [{
+                "role": "user",
+                "content": [{
+                    "type": "input_text",
+                    "text": text
+                }]
+            }]
+        }
+    }
+    if voice is not None:
+        message["response"]["voice"] = voice
+    if instructions is not None:
+        message["response"]["instructions"] = instructions
+    
+    global client
+    try:
+        client.send_realtime_message(message)
+        logger.info(f"Sent realtime message for user request. Message: {message}")
     except Exception as e:
         logger.error(f"Error in delayed send: {e}")
 
@@ -136,7 +162,11 @@ def main():
                     logger.info("Exit key detected. Stopping client...")
                     break
                 elif key == 'm':
-                    send_realtime_message()
+                    send_system_message("你是一个人形机器人，刚才跳完了舞。请口语化的简短的说你跳完了舞并与客户互动。")
+                elif key == 'k':
+                    send_customized_message("请按照原文念出以下的旁白，只需要根据原文说出旁白的内容，不需要其他扩展内容或表演：在古老的江南水乡，流传着一个凄美动人的爱情故事。它跨越了千年的时光，依然让人心驰神往。这便是被誉为‘东方的罗密欧与朱丽叶’的《梁山伯与祝英台》。\n\n故事发生在一个春意盎然的时节，祝英台，一位聪慧勇敢的女子，为了追求知识与自由，女扮男装，踏上了求学之路。而在那青山绿水之间，她与梁山伯相遇，两颗纯真的心在书院中悄然靠近。然而，命运却为他们设下了无法逾越的鸿沟……\n\n今晚，我们将带您回到那个充满诗意与悲情的年代，见证这段超越生死、感动天地的爱情传奇。", instructions="你负责念白", voice="zh_male_beijingxiaoye_emo_v2_mars_bigtts")
+                elif key == 'r':
+                    send_customized_message("旁白已结束，请开始进入你的角色的表演：")
                 elif key == 'p':
                     client.stop()
                 elif key == 's':

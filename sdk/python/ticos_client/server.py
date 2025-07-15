@@ -237,6 +237,7 @@ class UnifiedServer:
             "response.audio.delta",
             "response.video.done",
             "conversation.created",
+            "session.updated",
             "health.status"
         }
 

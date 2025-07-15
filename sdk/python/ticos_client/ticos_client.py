@@ -218,7 +218,7 @@ class TicosClient(MessageCallbackInterface):
 
     def start(self):
         """
-        Start the Ticos server and verify its startup status.
+        Start the Ticos client listener and verify its startup status.
 
         Returns:
             bool: True if server started successfully, False otherwise.
@@ -270,7 +270,7 @@ class TicosClient(MessageCallbackInterface):
                 # Check 3: Server thread is alive, now check uvicorn.Server's 'started' state.
                 uvicorn_instance = self.server._server
                 if uvicorn_instance is not None and uvicorn_instance.started:
-                    logger.info(f"Ticos server confirmed started successfully on port {self.port}")
+                    logger.info(f"Ticos client listener confirmed started successfully on port {self.port}")
                     self.running = True
                     return True
 
@@ -367,10 +367,10 @@ class TicosClient(MessageCallbackInterface):
                 except Exception as e:
                     logger.error(f"Error closing storage service: {e}")
 
-            logger.info("Ticos server stopped")
+            logger.info("Ticos client listener stopped")
 
         except Exception as e:
-            logger.error(f"Error stopping Ticos server: {e}")
+            logger.error(f"Error stopping Ticos client listener: {e}")
             # Force reset state
             self.server = None
             self.server_thread = None
@@ -854,7 +854,7 @@ class TicosClient(MessageCallbackInterface):
         except Exception as e:
             logger.error(f"Error updating session_config messages: {e}")
 
-    def update_variables(self, priority="medium"):
+    def update_variables(self, priority="low"):
         """
         Update or delete variables for the device by sending them to the server.
         

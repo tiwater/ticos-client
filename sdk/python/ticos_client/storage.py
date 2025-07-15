@@ -350,6 +350,8 @@ class SQLiteStorageService(StorageService):
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
+                
+                # First, perform the update operation
                 cursor.execute(
                     """
                     UPDATE messages SET role = ?, content = ?, item_id = ?, user_id = ?, datetime = ?
@@ -364,6 +366,48 @@ class SQLiteStorageService(StorageService):
                         message_id,
                     ),
                 )
+                
+                # Helper function to normalize text for comparison
+                def normalize_for_comparison(text):
+                    # Remove common punctuation at the end of the text (both Chinese and English)
+                    if text and text[-1] in '。，,.?!？！':
+                        return text[:-1]
+                    return text
+                
+                # Check if this is a user message, if so we need to check for duplicates
+                if message.role == MessageRole.USER:
+                    # Find the previous message (with the largest ID smaller than current)
+                    cursor.execute(
+                        """
+                        SELECT id, role, content FROM messages 
+                        WHERE id < ? 
+                        ORDER BY id DESC LIMIT 1
+                        """,
+                        (message_id,)
+                    )
+                    prev_row = cursor.fetchone()
+                    
+                    # If previous message exists and is also from user
+                    if prev_row and prev_row[1] == MessageRole.USER.value:
+                        prev_id, _, prev_content = prev_row
+                        
+                        # Normalize both messages for comparison
+                        normalized_current = normalize_for_comparison(message.content)
+                        normalized_prev = normalize_for_comparison(prev_content)
+                        
+                        # Check if normalized current message starts with normalized previous message
+                        # or if previous message starts with current (handles backspace cases)
+                        if (normalized_current.startswith(normalized_prev) or 
+                            normalized_prev.startswith(normalized_current)):
+                            
+                            # Only proceed if they're not identical after normalization
+                            if normalized_current != normalized_prev:
+                                logger.debug(f"Detected incremental user message in update. Removing previous message {prev_id}")
+                                logger.debug(f"Previous: '{prev_content}', Current: '{message.content}'")
+                                
+                                # Delete the previous message as it's now redundant
+                                cursor.execute("DELETE FROM messages WHERE id = ?", (prev_id,))
+                
                 conn.commit()
                 return cursor.rowcount > 0
         except Exception as e:

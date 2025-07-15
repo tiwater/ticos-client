@@ -12,7 +12,7 @@ class HttpUtil:
     """Utility class for making HTTP requests"""    
     
     @staticmethod
-    def update_variables(config_service, priority="medium"):
+    def update_variables(config_service, priority="low"):
         """
         Update or delete variables for the device by sending them to the server.
         
