@@ -148,9 +148,8 @@ class TicosClient(MessageCallbackInterface):
             self.storage = storage_service
             logger.info(f"Local storage enabled: {storage_service.__class__.__name__}")
 
-            if self.config_service.get("model.enable_memory_generation") == "client":
-                # We need to update the context messages in client side
-                self.update_session_config_messages()
+            # We need to update the context messages in client side
+            self.update_session_config_messages()
         except Exception as e:
             logger.error(f"Failed to initialize storage: {e}")
             if hasattr(self, 'message_handler') and self.message_handler is not None:
