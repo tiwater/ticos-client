@@ -123,7 +123,9 @@ class ConfigService:
             logger.warning("No API key configured, skipping server config fetch")
             return
 
-        url = f"https://api.ticos.ai/v1/agents/{agent_id}"
+        # Get ticos_server_url from config, default to https://api.ticos.cn, can support api.ticos.cn & api.ticos.ai
+        ticos_server_url = self.get("executor.ticos_server_url", "https://api.ticos.cn")
+        url = f"{ticos_server_url}/v1/agents/{agent_id}"
         headers = {
             "Authorization": f"Bearer {api_key}",
             "User-Agent": "Ticos-Client/1.0"
